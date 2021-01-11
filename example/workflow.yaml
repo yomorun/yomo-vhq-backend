@@ -1,0 +1,11 @@
+name: Service
+host: localhost
+port: 9999
+flows:
+  - name: Gather.town Serverless
+    host: localhost
+    port: 4242
+sinks:
+  - name: Socket.io
+    host: localhost
+    port: 4141
