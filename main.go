@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -16,9 +15,9 @@ import (
 
 const (
 	socketioRoom   = "yomo-demo"
-	socketioAddr   = "0.0.0.0:8000"
-	sinkServerAddr = "0.0.0.0:4141"
-	zipperAddr     = "localhost:9999"
+	socketioAddr   = "0.0.0.0:9000"
+	sinkServerAddr = "0.0.0.0:4041"
+	zipperAddr     = "localhost:9998"
 )
 
 var zipperStream quic.Stream = nil
@@ -88,7 +87,6 @@ func newSocketIOServer() (*socketio.Server, error) {
 	})
 
 	server.OnEvent("/", "receive_source", func(s socketio.Conn, key string) {
-		fmt.Println("receive_source:", key)
 		proto := codes.NewProtoCodec(0x10)
 		sendingBuf, _ := proto.Marshal(key)
 		write2zipper(sendingBuf)
