@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -12,6 +13,21 @@ import (
 	"github.com/yomorun/yomo/pkg/quic"
 	"github.com/yomorun/yomo/pkg/rx"
 )
+
+type Player struct {
+	ID   string  `json:"id"`
+	Name string  `json:"name"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+}
+
+type Action struct {
+	ID string  `json:"id"`
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+}
+
+var players = make(map[string]Player, 0)
 
 const (
 	socketioRoom   = "yomo-demo"
@@ -86,7 +102,49 @@ func newSocketIOServer() (*socketio.Server, error) {
 		return nil
 	})
 
-	server.OnEvent("/", "receive_source", func(s socketio.Conn, key string) {
+	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
+		server.LeaveRoom("/", socketioRoom, s)
+		if players[s.ID()].ID != "" {
+			players[s.ID()] = Player{}
+		}
+		server.BroadcastToRoom("", socketioRoom, "leave", s.ID())
+	})
+
+	server.OnEvent("/", "join", func(s socketio.Conn, msg string) {
+		var player Player
+
+		json.Unmarshal([]byte(msg), &player)
+		id := player.ID
+		player.ID = s.ID()
+		if id == "" {
+			players[player.ID] = player
+		} else {
+			players[id] = player
+		}
+
+		newplayer, _ := json.Marshal(player)
+		server.BroadcastToRoom("", socketioRoom, "join", string(newplayer))
+
+		current := make([]Player, 0)
+
+		for _, v := range players {
+			current = append(current, v)
+		}
+		allplayer, _ := json.Marshal(current)
+		server.BroadcastToRoom("", socketioRoom, "current", string(allplayer))
+	})
+
+	server.OnEvent("/", "current", func(s socketio.Conn, msg string) {
+		current := make([]Player, 0)
+
+		for _, v := range players {
+			current = append(current, v)
+		}
+		allplayer, _ := json.Marshal(current)
+		server.BroadcastToRoom("", socketioRoom, "current", string(allplayer))
+	})
+
+	server.OnEvent("/", "move", func(s socketio.Conn, key string) {
 		proto := codes.NewProtoCodec(0x10)
 		sendingBuf, _ := proto.Marshal(key)
 		write2zipper(sendingBuf)
@@ -149,7 +207,18 @@ func (s *quicServerHandler) Read(st quic.Stream) error {
 				log.Print(customer.E.Error())
 			} else if customer.V != nil {
 				// broadcast message to all connected user.
-				s.socketioServer.BroadcastToRoom("", socketioRoom, "receive_sink", customer.V.(string))
+				var action Action
+
+				json.Unmarshal([]byte(customer.V.(string)), &action)
+				p := players[action.ID]
+
+				players[action.ID] = Player{
+					ID:   action.ID,
+					Name: p.Name,
+					X:    action.X,
+					Y:    action.Y,
+				}
+				s.socketioServer.BroadcastToRoom("", socketioRoom, "move", customer.V.(string))
 			}
 		}
 	}()
