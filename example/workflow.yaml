@@ -4,8 +4,8 @@ port: 9998
 flows:
   - name: Gather.town Serverless
     host: localhost
-    port: 4042
+    port: 4061
 sinks:
   - name: Socket.io
     host: localhost
-    port: 4041
+    port: 4062
