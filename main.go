@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	socketio "github.com/googollee/go-socket.io"
-	"github.com/yomorun/y3-codec-golang/pkg/codes"
+	y3 "github.com/yomorun/y3-codec-golang"
 	"github.com/yomorun/yomo/pkg/quic"
 	"github.com/yomorun/yomo/pkg/rx"
 )
@@ -31,8 +31,8 @@ var players = make(map[string]Player, 0)
 
 const (
 	socketioRoom   = "yomo-demo"
-	socketioAddr   = "0.0.0.0:9000"
-	sinkServerAddr = "0.0.0.0:4041"
+	socketioAddr   = "0.0.0.0:19001"
+	sinkServerAddr = "0.0.0.0:4062"
 	zipperAddr     = "localhost:9998"
 )
 
@@ -145,7 +145,7 @@ func newSocketIOServer() (*socketio.Server, error) {
 	})
 
 	server.OnEvent("/", "move", func(s socketio.Conn, key string) {
-		proto := codes.NewProtoCodec(0x10)
+		proto := y3.NewCodec(0x10)
 		sendingBuf, _ := proto.Marshal(key)
 		write2zipper(sendingBuf)
 	})
@@ -198,8 +198,11 @@ func (s *quicServerHandler) Listen() error {
 
 func (s *quicServerHandler) Read(st quic.Stream) error {
 	// receive the data from `yomo-flow` and use rx (ReactiveX) to process the stream.
-	rxStream := rx.FromReader(st).
-		Y3Decoder("0x10", string("")) // decode the data via Y3 Codec.
+	var callback = func(v []byte) (interface{}, error) {
+		return y3.ToUTF8String(v)
+	}
+
+	rxStream := rx.FromReaderWithY3(st).Subscribe(0x10).OnObserve(callback)
 
 	go func() {
 		for customer := range rxStream.Observe() {
