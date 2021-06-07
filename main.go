@@ -267,6 +267,9 @@ func newSocketIOServer() (*socketio.Server, error) {
 		}
 
 		broadcastCurrentPlayers(server)
+
+		// broadcast host-player-id region
+		server.BroadcastToRoom("", socketioRoom, "hostPlayerId", player.ID)
 	})
 
 	server.OnEvent("/", "current", func(s socketio.Conn, msg string) {
@@ -289,8 +292,7 @@ func newSocketIOServer() (*socketio.Server, error) {
 }
 
 func getPlayerID(s socketio.Conn) string {
-	// return fmt.Sprint(region, "-", s.ID())
-	return s.ID()
+	return fmt.Sprint(serverRegion, "-", s.ID())
 }
 
 // broadcast current players to all geo-distributed users.
