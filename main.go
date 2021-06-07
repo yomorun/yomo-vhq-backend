@@ -223,6 +223,21 @@ func newSocketIOServer() (*socketio.Server, error) {
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
 		server.LeaveRoom("/", socketioRoom, s)
 		playerID := getPlayerID(s)
+
+		// broadcast the data to local users via socket.io directly.
+		server.BroadcastToRoom("", socketioRoom, "leave", playerID)
+
+		if sender != nil {
+			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
+			sender.send(EventData{
+				ServerRegion: serverRegion,
+				Room:         socketioRoom,
+				Event:        "leave",
+				Data:         playerID,
+			})
+		}
+
+		// update local cache
 		if localPlayersCache[playerID].ID != "" {
 			delete(localPlayersCache, playerID)
 		}
@@ -236,19 +251,6 @@ func newSocketIOServer() (*socketio.Server, error) {
 		if players[playerID].ID != "" {
 			delete(players, playerID)
 			saveCurrentPlayers(players)
-		}
-
-		if sender != nil {
-			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
-			sender.send(EventData{
-				ServerRegion: serverRegion,
-				Room:         socketioRoom,
-				Event:        "leave",
-				Data:         playerID,
-			})
-		} else {
-			// if the sender is nil, broadcast the data to users via socket.io directly.
-			server.BroadcastToRoom("", socketioRoom, "leave", playerID)
 		}
 	})
 
@@ -275,24 +277,15 @@ func newSocketIOServer() (*socketio.Server, error) {
 			player.ServerRegion = serverRegion
 		}
 
-		// add player to list.
-		players, err := getCurrentPlayers()
-		if err != nil {
-			log.Printf("❌ get current players from Macrometa failed: %v", err)
-		}
-		players[player.ID] = player
-		for _, v := range players {
-			if localPlayersCache[v.ID].ID == "" {
-				localPlayersCache[v.ID] = v
-			}
-		}
-		err = saveCurrentPlayers(localPlayersCache)
-		if err != nil {
-			log.Printf("❌ save current players to Macrometa failed: %v", err)
-		}
-
 		// marshal the player for broadcasting.
 		newPlayerData, _ := json.Marshal(player)
+
+		// broadcast the data to local users via socket.io directly.
+		server.BroadcastToRoom("", socketioRoom, "join", string(newPlayerData))
+
+		// emit host-player-id to current user
+		s.Emit("hostPlayerId", player.ID)
+
 		if sender != nil {
 			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 			sender.send(EventData{
@@ -301,15 +294,32 @@ func newSocketIOServer() (*socketio.Server, error) {
 				Event:        "join",
 				Data:         string(newPlayerData),
 			})
-		} else {
-			// if the sender is nil, broadcast the data to users via socket.io directly.
-			server.BroadcastToRoom("", socketioRoom, "join", string(newPlayerData))
 		}
 
+		// add player to list.
+		players, err := getCurrentPlayers()
+		if err != nil {
+			log.Printf("❌ get current players from Macrometa failed: %v", err)
+		}
+		players[player.ID] = player
+		for _, v := range players {
+			existingPlayer := localPlayersCache[v.ID]
+			if existingPlayer.ID != "" {
+				v.X = existingPlayer.X
+				v.Y = existingPlayer.Y
+				players[v.ID] = v
+			}
+		}
+		localPlayersCache = players
+
+		// broadcast current players list
 		broadcastCurrentPlayers(server)
 
-		// emit host-player-id to current user
-		s.Emit("hostPlayerId", player.ID)
+		// save current players to Macrodata
+		err = saveCurrentPlayers(players)
+		if err != nil {
+			log.Printf("❌ save current players to Macrometa failed: %v", err)
+		}
 	})
 
 	server.OnEvent("/", "current", func(s socketio.Conn, msg string) {
