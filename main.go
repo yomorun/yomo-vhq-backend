@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -51,8 +53,6 @@ type Action struct {
 	Y  float64 `json:"y"`
 }
 
-var players = make(map[string]Player, 0)
-
 const (
 	socketioRoom = "yomo-demo"
 	socketioAddr = "0.0.0.0:19001"
@@ -65,11 +65,17 @@ var port, _ = strconv.Atoi(urls[1])
 var sender *Sender
 var socketioServer *socketio.Server
 var serverRegion = os.Getenv("REGION")
+var macrometaURL = ""
+var macrometaAPIKey = ""
+var localPlayersCache = make(map[string]Player, 0)
 
 func init() {
 	if serverRegion == "" {
 		serverRegion = "US"
 	}
+
+	macrometaURL = "https://api-gdn.paas.macrometa.io/_fabric/_system/_api/kv/VHQ/value"
+	macrometaAPIKey = fmt.Sprintf("apikey %s", os.Getenv("MACROMETA_API_KEY"))
 }
 
 func main() {
@@ -115,7 +121,6 @@ func newSender() *Sender {
 		log.Printf("❌ Connect to the zipper server on %s failure with err: %v", zipperAddr, err)
 		return nil
 	}
-	defer cli.Close()
 
 	return &Sender{
 		Stream: cli,
@@ -218,8 +223,19 @@ func newSocketIOServer() (*socketio.Server, error) {
 	server.OnDisconnect("/", func(s socketio.Conn, reason string) {
 		server.LeaveRoom("/", socketioRoom, s)
 		playerID := getPlayerID(s)
+		if localPlayersCache[playerID].ID != "" {
+			delete(localPlayersCache, playerID)
+		}
+
+		// delete player in Macrometa
+		players, err := getCurrentPlayers()
+		if err != nil {
+			log.Printf("❌ get the current players from Macrometa failed: %v", err)
+		}
+
 		if players[playerID].ID != "" {
 			delete(players, playerID)
+			saveCurrentPlayers(players)
 		}
 
 		if sender != nil {
@@ -240,16 +256,40 @@ func newSocketIOServer() (*socketio.Server, error) {
 		var player Player
 
 		// unmarshal the player from socket.io msg.
-		json.Unmarshal([]byte(msg), &player)
+		err := json.Unmarshal([]byte(msg), &player)
+		if err != nil {
+			log.Printf("❌ Unmarshal the join event failed: %v", err)
+		}
+		if player.Name == "" {
+			// skip the player when the name is empty.
+			return
+		}
+
+		// set player ID
 		if player.ID == "" {
 			player.ID = getPlayerID(s)
 		}
 
 		// set server region
-		player.ServerRegion = serverRegion
+		if player.ServerRegion == "" {
+			player.ServerRegion = serverRegion
+		}
 
 		// add player to list.
+		players, err := getCurrentPlayers()
+		if err != nil {
+			log.Printf("❌ get current players from Macrometa failed: %v", err)
+		}
 		players[player.ID] = player
+		for _, v := range players {
+			if localPlayersCache[v.ID].ID == "" {
+				localPlayersCache[v.ID] = v
+			}
+		}
+		err = saveCurrentPlayers(localPlayersCache)
+		if err != nil {
+			log.Printf("❌ save current players to Macrometa failed: %v", err)
+		}
 
 		// marshal the player for broadcasting.
 		newPlayerData, _ := json.Marshal(player)
@@ -268,8 +308,8 @@ func newSocketIOServer() (*socketio.Server, error) {
 
 		broadcastCurrentPlayers(server)
 
-		// broadcast host-player-id region
-		server.BroadcastToRoom("", socketioRoom, "hostPlayerId", player.ID)
+		// emit host-player-id to current user
+		s.Emit("hostPlayerId", player.ID)
 	})
 
 	server.OnEvent("/", "current", func(s socketio.Conn, msg string) {
@@ -299,10 +339,10 @@ func getPlayerID(s socketio.Conn) string {
 func broadcastCurrentPlayers(server *socketio.Server) {
 	current := make([]Player, 0)
 
-	for _, v := range players {
+	for _, v := range localPlayersCache {
 		current = append(current, v)
 	}
-	allPlayers, _ := json.Marshal(current)
+	data, _ := json.Marshal(current)
 
 	if sender != nil {
 		// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
@@ -310,10 +350,10 @@ func broadcastCurrentPlayers(server *socketio.Server) {
 			ServerRegion: serverRegion,
 			Room:         socketioRoom,
 			Event:        "current",
-			Data:         string(allPlayers),
+			Data:         string(data),
 		})
 	} else {
-		server.BroadcastToRoom("", socketioRoom, "current", string(allPlayers))
+		server.BroadcastToRoom("", socketioRoom, "current", string(data))
 	}
 }
 
@@ -327,13 +367,11 @@ func updatePlayerMovement(x EventData) {
 		return
 	}
 
-	p := players[action.ID]
-	players[action.ID] = Player{
-		ID:           action.ID,
-		ServerRegion: serverRegion,
-		Name:         p.Name,
-		X:            action.X,
-		Y:            action.Y,
+	p := localPlayersCache[action.ID]
+	if p.ID != "" {
+		p.X = action.X
+		p.Y = action.Y
+		localPlayersCache[action.ID] = p
 	}
 }
 
@@ -356,4 +394,94 @@ func ginMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+type macrometaKVCreate struct {
+	Key      string `json:"_key"`
+	Value    string `json:"value"`
+	ExpireAt int64  `json:"expireAt"`
+}
+
+type macrometaKVGet struct {
+	ID       string `json:"_id"`
+	Key      string `json:"_key"`
+	Rev      string `json:"_rev"`
+	ExpireAt int64  `json:"expireAt"`
+	Value    string `json:"value"`
+}
+
+// saveCurrentPlayers saves data to macrometa
+func saveCurrentPlayers(players map[string]Player) error {
+	playersBuf, err := json.Marshal(players)
+	if err != nil {
+		return err
+	}
+
+	data := []macrometaKVCreate{
+		{
+			Key:      "current",
+			Value:    string(playersBuf),
+			ExpireAt: -1,
+		},
+	}
+
+	buf, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	req, err := http.NewRequest("PUT", macrometaURL, bytes.NewBuffer(buf))
+	req.Header.Set("authorization", macrometaAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		return err
+
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+
+	}
+	if !(resp.StatusCode == 201 || resp.StatusCode == 202) {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return errors.New(string(bodyBytes))
+	}
+
+	defer resp.Body.Close()
+
+	return nil
+}
+
+// getCurrentPlayers gets current players from macrometa
+func getCurrentPlayers() (map[string]Player, error) {
+	var players = make(map[string]Player, 0)
+	req, err := http.NewRequest("GET", macrometaURL+"/current", nil)
+
+	req.Header.Set("authorization", macrometaAPIKey)
+	req.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		return players, err
+
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return players, err
+
+	}
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return players, errors.New(string(bodyBytes))
+	}
+
+	defer resp.Body.Close()
+	var data macrometaKVGet
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return players, err
+	}
+
+	err = json.Unmarshal([]byte(data.Value), &players)
+	return players, err
 }
