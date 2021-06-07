@@ -28,18 +28,20 @@ type Sender struct {
 
 // EventData represents the event data for broadcasting to all geo-distributed users.
 type EventData struct {
-	Region string `y3:"0x11"`
-	Room   string `y3:"0x12"`
-	Event  string `y3:"0x13"`
-	Data   string `y3:"0x14"`
+	ServerRegion string `y3:"0x11"`
+	Room         string `y3:"0x12"`
+	Event        string `y3:"0x13"`
+	Data         string `y3:"0x14"`
 }
 
 // Player represents the users in VHQ room.
 type Player struct {
-	ID   string  `json:"id"`
-	Name string  `json:"name"`
-	X    float64 `json:"x"`
-	Y    float64 `json:"y"`
+	ID string `json:"id"`
+	// ClientRegion string  `json:"client_region"`
+	ServerRegion string  `json:"server_region"`
+	Name         string  `json:"name"`
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
 }
 
 // Action represents the user's action in VHQ room.
@@ -62,11 +64,11 @@ var host = urls[0]
 var port, _ = strconv.Atoi(urls[1])
 var sender *Sender
 var socketioServer *socketio.Server
-var region = os.Getenv("REGION")
+var serverRegion = os.Getenv("REGION")
 
 func init() {
-	if region == "" {
-		region = "US"
+	if serverRegion == "" {
+		serverRegion = "US"
 	}
 }
 
@@ -223,10 +225,10 @@ func newSocketIOServer() (*socketio.Server, error) {
 		if sender != nil {
 			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 			sender.send(EventData{
-				Region: region,
-				Room:   socketioRoom,
-				Event:  "leave",
-				Data:   playerID,
+				ServerRegion: serverRegion,
+				Room:         socketioRoom,
+				Event:        "leave",
+				Data:         playerID,
 			})
 		} else {
 			// if the sender is nil, broadcast the data to users via socket.io directly.
@@ -243,6 +245,9 @@ func newSocketIOServer() (*socketio.Server, error) {
 			player.ID = getPlayerID(s)
 		}
 
+		// set server region
+		player.ServerRegion = serverRegion
+
 		// add player to list.
 		players[player.ID] = player
 
@@ -251,10 +256,10 @@ func newSocketIOServer() (*socketio.Server, error) {
 		if sender != nil {
 			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 			sender.send(EventData{
-				Region: region,
-				Room:   socketioRoom,
-				Event:  "join",
-				Data:   string(newPlayerData),
+				ServerRegion: serverRegion,
+				Room:         socketioRoom,
+				Event:        "join",
+				Data:         string(newPlayerData),
 			})
 		} else {
 			// if the sender is nil, broadcast the data to users via socket.io directly.
@@ -262,9 +267,6 @@ func newSocketIOServer() (*socketio.Server, error) {
 		}
 
 		broadcastCurrentPlayers(server)
-
-		// broadcast server region
-		server.BroadcastToRoom("", socketioRoom, "region", region)
 	})
 
 	server.OnEvent("/", "current", func(s socketio.Conn, msg string) {
@@ -274,10 +276,10 @@ func newSocketIOServer() (*socketio.Server, error) {
 	server.OnEvent("/", "move", func(s socketio.Conn, movement string) {
 		if sender != nil {
 			data := EventData{
-				Region: region,
-				Room:   socketioRoom,
-				Event:  "move",
-				Data:   movement,
+				ServerRegion: serverRegion,
+				Room:         socketioRoom,
+				Event:        "move",
+				Data:         movement,
 			}
 			sender.send(data)
 		}
@@ -303,10 +305,10 @@ func broadcastCurrentPlayers(server *socketio.Server) {
 	if sender != nil {
 		// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 		sender.send(EventData{
-			Region: region,
-			Room:   socketioRoom,
-			Event:  "current",
-			Data:   string(allPlayers),
+			ServerRegion: serverRegion,
+			Room:         socketioRoom,
+			Event:        "current",
+			Data:         string(allPlayers),
 		})
 	} else {
 		server.BroadcastToRoom("", socketioRoom, "current", string(allPlayers))
@@ -325,10 +327,11 @@ func updatePlayerMovement(x EventData) {
 
 	p := players[action.ID]
 	players[action.ID] = Player{
-		ID:   action.ID,
-		Name: p.Name,
-		X:    action.X,
-		Y:    action.Y,
+		ID:           action.ID,
+		ServerRegion: serverRegion,
+		Name:         p.Name,
+		X:            action.X,
+		Y:            action.Y,
 	}
 }
 
