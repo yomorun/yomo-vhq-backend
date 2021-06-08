@@ -14,6 +14,8 @@
 $ go install github.com/yomorun/cli/yomo@latest
 ```
 
+See [YoMo CLI](https://github.com/yomorun/cli#installing) for details.
+
 ### 2. Run YoMo-Zipper
 
 ```bash
@@ -36,7 +38,7 @@ $ REGION=CN MACROMETA_API_KEY=your-macrometa-apikey go run main.go
 2021/06/07 22:33:18 Starting socket.io server...
 ```
 
-This example uses [Macrometa KV Datastore](https://www.macrometa.com/products/nosql/kv) to store the global state, you can signup a macrometa and create a K/V collection (`VHQ`) for testing.
+This example uses [Macrometa KV Datastore](https://www.macrometa.com/products/nosql/kv) to store the global state, you can signup a macrometa and create a K/V collection (`VHQ`) for testing. Then you can generate a new [API key](https://gdn.paas.macrometa.io/#accounts/apikeys) in your Macrometa account and set it to the environment variable `MACROMETA_API_KEY`.
 
 ### 4. Run the frontend project
 

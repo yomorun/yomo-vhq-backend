@@ -75,7 +75,9 @@ func init() {
 	}
 
 	macrometaURL = "https://api-gdn.paas.macrometa.io/_fabric/_system/_api/kv/VHQ/value"
-	macrometaAPIKey = fmt.Sprintf("apikey %s", os.Getenv("MACROMETA_API_KEY"))
+	if os.Getenv("MACROMETA_API_KEY") != "" {
+		macrometaAPIKey = fmt.Sprintf("apikey %s", os.Getenv("MACROMETA_API_KEY"))
+	}
 }
 
 func main() {
@@ -111,8 +113,6 @@ func main() {
 		return
 	}
 }
-
-var senderStream io.Writer = nil
 
 // sender sends the movement data to yomo-zipper for stream processing.
 func newSender() *Sender {
@@ -162,6 +162,7 @@ func setupReceiver() {
 	cli.Pipe(receiverHandler)
 }
 
+// decode the data via Y3 Codec.
 var decode = func(v []byte) (interface{}, error) {
 	var mold EventData
 	err := y3.ToObject(v, &mold)
@@ -171,6 +172,7 @@ var decode = func(v []byte) (interface{}, error) {
 	return mold, nil
 }
 
+// broadcast the events the geo-distributed users.
 var broadcastEventToUsers = func(_ context.Context, i interface{}) (interface{}, error) {
 	x, ok := i.(EventData)
 	if !ok {
@@ -184,8 +186,8 @@ var broadcastEventToUsers = func(_ context.Context, i interface{}) (interface{},
 		updatePlayerMovement(x)
 	}
 
-	// broadcast message to all connected user.
-	if socketioServer != nil {
+	// broadcast message to all connected users in other regions.
+	if socketioServer != nil && x.ServerRegion != serverRegion {
 		socketioServer.BroadcastToRoom("", x.Room, x.Event, x.Data)
 	}
 
@@ -301,22 +303,28 @@ func newSocketIOServer() (*socketio.Server, error) {
 		if err != nil {
 			log.Printf("❌ get current players from Macrometa failed: %v", err)
 		}
-		players[player.ID] = player
-		for _, v := range players {
-			existingPlayer := localPlayersCache[v.ID]
-			if existingPlayer.ID != "" {
-				v.X = existingPlayer.X
-				v.Y = existingPlayer.Y
-				players[v.ID] = v
+
+		if len(players) > 0 {
+			// sync the latest players to local cache.
+			players[player.ID] = player
+			for _, v := range players {
+				existingPlayer := localPlayersCache[v.ID]
+				if existingPlayer.ID != "" {
+					v.X = existingPlayer.X
+					v.Y = existingPlayer.Y
+					players[v.ID] = v
+				}
 			}
+			localPlayersCache = players
+		} else {
+			localPlayersCache[player.ID] = player
 		}
-		localPlayersCache = players
 
 		// broadcast current players list
 		broadcastCurrentPlayers(server)
 
 		// save current players to Macrodata
-		err = saveCurrentPlayers(players)
+		err = saveCurrentPlayers(localPlayersCache)
 		if err != nil {
 			log.Printf("❌ save current players to Macrometa failed: %v", err)
 		}
@@ -327,7 +335,11 @@ func newSocketIOServer() (*socketio.Server, error) {
 	})
 
 	server.OnEvent("/", "move", func(s socketio.Conn, movement string) {
+		// broadcast the data to local users via socket.io directly.
+		socketioServer.BroadcastToRoom("", socketioRoom, "move", movement)
+
 		if sender != nil {
+			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 			data := EventData{
 				ServerRegion: serverRegion,
 				Room:         socketioRoom,
@@ -354,6 +366,9 @@ func broadcastCurrentPlayers(server *socketio.Server) {
 	}
 	data, _ := json.Marshal(current)
 
+	// broadcast the data to local users via socket.io directly.
+	server.BroadcastToRoom("", socketioRoom, "current", string(data))
+
 	if sender != nil {
 		// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 		sender.send(EventData{
@@ -362,8 +377,6 @@ func broadcastCurrentPlayers(server *socketio.Server) {
 			Event:        "current",
 			Data:         string(data),
 		})
-	} else {
-		server.BroadcastToRoom("", socketioRoom, "current", string(data))
 	}
 }
 
@@ -422,6 +435,10 @@ type macrometaKVGet struct {
 
 // saveCurrentPlayers saves data to macrometa
 func saveCurrentPlayers(players map[string]Player) error {
+	if macrometaAPIKey == "" {
+		return errors.New("Macrometa API key is empty")
+	}
+
 	playersBuf, err := json.Marshal(players)
 	if err != nil {
 		return err
@@ -466,6 +483,10 @@ func saveCurrentPlayers(players map[string]Player) error {
 // getCurrentPlayers gets current players from macrometa
 func getCurrentPlayers() (map[string]Player, error) {
 	var players = make(map[string]Player, 0)
+	if macrometaAPIKey == "" {
+		return players, errors.New("Macrometa API key is empty")
+	}
+
 	req, err := http.NewRequest("GET", macrometaURL+"/current", nil)
 
 	req.Header.Set("authorization", macrometaAPIKey)
