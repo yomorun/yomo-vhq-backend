@@ -1,4 +1,6 @@
-# yomo-socketio-adaptor
+# vhq-backend
+
+This example demonstrates how to build a Virtual HQ backend with [YoMo](https://github.com/yomorun/yomo) Edge-Mesh Architecture + [Socket.IO](https://socket.io/).
 
 ![Edge-Mesh](https://github.com/yomorun/yomo-socketio-adapter/blob/main/edge-mesh.jpg)
 
@@ -42,4 +44,5 @@ This example uses [Macrometa KV Datastore](https://www.macrometa.com/products/no
 
 ### 4. Run the frontend project
 
-See [yomo-app-gather-town-example](https://github.com/yomorun/yomo-app-gather-town-example) for details.
+* **Next.js** version: [vhq-frontend-nextjs](https://github.com/yomorun/vhq-frontend-nextjs)
+* **Metaverse** version: [vhq-frontend-metaverse](https://github.com/yomorun/vhq-frontend-metaverse)
