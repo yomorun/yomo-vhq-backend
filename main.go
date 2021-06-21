@@ -208,10 +208,7 @@ func receiverHandler(rxstream rx.RxStream) rx.RxStream {
 // newSocketIOServer creates a new socket.io server.
 func newSocketIOServer() (*socketio.Server, error) {
 	log.Print("Starting socket.io server...")
-	server, err := socketio.NewServer(nil)
-	if err != nil {
-		return nil, err
-	}
+	server := socketio.NewServer(nil)
 
 	// add all connected user to the room "yomo-demo".
 	server.OnConnect("/", func(s socketio.Conn) error {
@@ -299,35 +296,18 @@ func newSocketIOServer() (*socketio.Server, error) {
 		}
 
 		// add player to list.
-		players, err := getCurrentPlayers()
-		if err != nil {
-			log.Printf("❌ get current players from Macrometa failed: %v", err)
-		}
-
-		if len(players) > 0 {
-			// sync the latest players to local cache.
-			players[player.ID] = player
-			for _, v := range players {
-				existingPlayer := localPlayersCache[v.ID]
-				if existingPlayer.ID != "" {
-					v.X = existingPlayer.X
-					v.Y = existingPlayer.Y
-					players[v.ID] = v
-				}
-			}
-			localPlayersCache = players
-		} else {
-			localPlayersCache[player.ID] = player
-		}
+		localPlayersCache[player.ID] = player
 
 		// broadcast current players list
 		broadcastCurrentPlayers(server)
 
 		// save current players to Macrodata
-		err = saveCurrentPlayers(localPlayersCache)
-		if err != nil {
-			log.Printf("❌ save current players to Macrometa failed: %v", err)
-		}
+		go func() {
+			err = saveCurrentPlayers(localPlayersCache)
+			if err != nil {
+				log.Printf("❌ save current players to Macrometa failed: %v", err)
+			}
+		}()
 	})
 
 	server.OnEvent("/", "current", func(s socketio.Conn, msg string) {
