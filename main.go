@@ -199,8 +199,7 @@ func receiverHandler(rxstream rx.RxStream) rx.RxStream {
 	stream := rxstream.
 		Subscribe(eventDataKey).
 		OnObserve(decode).
-		Map(broadcastEventToUsers).
-		Marshal(json.Marshal)
+		Map(broadcastEventToUsers)
 
 	return stream
 }
@@ -285,6 +284,12 @@ func newSocketIOServer() (*socketio.Server, error) {
 		// emit host-player-id to current user
 		s.Emit("hostPlayerId", player.ID)
 
+		// add player to list.
+		localPlayersCache[player.ID] = player
+
+		// broadcast current players list
+		broadcastCurrentPlayers(server)
+
 		if sender != nil {
 			// send event data to `yomo-zipper` for broadcasting to geo-distributed users.
 			sender.send(EventData{
@@ -294,12 +299,6 @@ func newSocketIOServer() (*socketio.Server, error) {
 				Data:         string(newPlayerData),
 			})
 		}
-
-		// add player to list.
-		localPlayersCache[player.ID] = player
-
-		// broadcast current players list
-		broadcastCurrentPlayers(server)
 
 		// save current players to Macrodata
 		go func() {
