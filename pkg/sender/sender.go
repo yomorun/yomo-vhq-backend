@@ -51,7 +51,7 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		server.LeaveRoom("/", lib.RoomID, conn)
 
 		// broadcast the data to local users via socket.io directly.
-		server.BroadcastToRoom("/", lib.RoomID, "offline", conn.Context())
+		server.BroadcastToRoom("/", lib.RoomID, "offline", conn.ID())
 
 		// broadcast to other yomo-zipper nodes
 		s.BroadcastOfflineEvent(lib.RoomID, "offline", fmt.Sprintf("%s", conn.Context()))
