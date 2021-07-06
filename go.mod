@@ -1,4 +1,4 @@
-module github.com/yomorun/yomo-socketio-adapter
+module yomo.run/vhq
 
 go 1.15
 
