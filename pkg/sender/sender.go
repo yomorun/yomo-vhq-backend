@@ -36,7 +36,7 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	// when new user connnected, add them to socket.io room
 	server.OnConnect("/", func(s socketio.Conn) error {
 		// userID := getConnectionID(s)
-		// log.Printf("[%s] Connected", userID)
+		log.Printf("========> [%s] Connected", s.ID())
 		// s.SetContext(userID)
 
 		s.Join(lib.RoomID)
@@ -46,15 +46,23 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		return nil
 	})
 
-	// when user disconnect, leave them from socket.io room,
+	// when user disconnect, leave them from socket.io room,``
 	// and notify to others in this room
 	server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
+		log.Printf("========>> ID=%s, Context=%v", conn.ID(), conn.Context())
+		if conn.Context() == nil {
+			return
+		}
+
+		log.Printf("[%v] | EVT | disconnect | reason=%s", conn.Context().(string), reason)
+
+		// broadcast the data to local mesh users via socket.io directly.
+		var payload = &map[string]interface{}{"name": conn.Context().(string)}
+		server.BroadcastToRoom("/", lib.RoomID, "offline", payload)
+
 		server.LeaveRoom("/", lib.RoomID, conn)
 
-		// broadcast the data to local users via socket.io directly.
-		server.BroadcastToRoom("/", lib.RoomID, "offline", conn.ID())
-
-		// broadcast to other yomo-zipper nodes
+		// broadcast to other mesh nodes
 		s.BroadcastOfflineEvent(lib.RoomID, "offline", fmt.Sprintf("%s", conn.Context()))
 	})
 
@@ -93,6 +101,7 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 
 		// broadcast the data to local users via socket.io directly.
 		server.BroadcastToRoom("/", lib.RoomID, "online", signal)
+		server.BroadcastToRoom("/", lib.RoomID, "ask")
 
 		log.Printf("Broadcasted: %v", signal)
 
@@ -100,6 +109,27 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		data := lib.EventData{
 			Room:  lib.RoomID,
 			Event: "online",
+			Data:  "state",
+		}
+		s.send(data)
+
+	})
+
+	// browser will emit "sync" event to tell others my position, the payload looks like
+	// {name: "USER_ID", pos: {x: 0, y: 0}}
+	server.OnEvent("/", "sync", func(conn socketio.Conn, payload interface{}) {
+		var signal = payload.(map[string]interface{})
+		// userID := signal["name"]
+
+		log.Printf("[%s] EVT | sync | pos=%v", conn.Context().(string), signal)
+
+		// broadcast the data to local users via socket.io directly.
+		server.BroadcastToRoom("/", lib.RoomID, "sync", signal)
+
+		// send event data to `yomo-zipper` for broadcasting to other mesh nodes
+		data := lib.EventData{
+			Room:  lib.RoomID,
+			Event: "sync",
 			Data:  "state",
 		}
 		s.send(data)
