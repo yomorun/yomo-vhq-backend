@@ -45,7 +45,6 @@ func main() {
 	// receiver will receive the data from `yomo-zipper` after stream processing.
 	hostOfReceiver, portOfReceiver := getHostAndPort(receiverYoMoServer)
 	go receiver.NewReceiver(hostOfReceiver, portOfReceiver, server)
-	// go receiver.BindConnectionPresenceStreamProcessing(server)
 
 	// serve socket.io server.
 	go server.Serve()

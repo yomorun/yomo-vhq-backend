@@ -51,9 +51,10 @@ var broadcastEventToUsers = func(v []byte) (interface{}, error) {
 
 	logger.Printf("=====broadcastEventToUsers mold: %v", mold)
 
-	// broadcast the data to local users via socket.io directly.
-	ws.BroadcastToRoom("/", lib.RoomID, "online", &map[string]interface{}{"name": mold.Name, "timestamp": mold.Timestamp})
-	ws.BroadcastToRoom("/", lib.RoomID, "ask")
+	switch mold.Event {
+	case "online":
+		processEventOnline(mold)
+	}
 
 	return mold, nil
 }
@@ -67,4 +68,11 @@ func receiverHandler(rxstream rx.RxStream) rx.RxStream {
 		Encode(0x12)
 
 	return stream
+}
+
+func processEventOnline(mold lib.PresenceOnline) {
+	logger.Printf("=====processEventOnline mold: %v", mold)
+	// broadcast the data to local users via socket.io directly.
+	ws.BroadcastToRoom("/", lib.RoomID, "online", &map[string]interface{}{"name": mold.Name, "timestamp": mold.Timestamp})
+	ws.BroadcastToRoom("/", lib.RoomID, "ask")
 }

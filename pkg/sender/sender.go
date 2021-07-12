@@ -130,8 +130,6 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		} else {
 			s.logger.Printf("-> [%s] | EVT | online | %v", userID, buf)
 		}
-
-		conn.Emit("hey", "haah")
 	})
 
 	// browser will emit "sync" event to tell others my position, the payload looks like
