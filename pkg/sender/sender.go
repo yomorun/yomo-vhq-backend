@@ -6,10 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"time"
 
 	socketio "github.com/googollee/go-socket.io"
 
-	"github.com/yomorun/y3-codec-golang"
 	"github.com/yomorun/yomo/pkg/client"
 	"yomo.run/vhq/pkg/lib"
 )
@@ -17,30 +17,32 @@ import (
 // sender sends the VHQ events to yomo-zipper for stream processing.
 type Sender struct {
 	Stream io.Writer
+	logger *log.Logger
 }
 
 // NewSender send presence as stream to yomo-send-server
-func NewSender(host string, port int, zipperAddr string) *Sender {
-	log.SetPrefix("[Sender] ")
+func NewSender(host string, port int) *Sender {
+	logger := log.New(os.Stdout, "[Sender] ", log.LstdFlags)
 	cli, err := client.NewSource("Socket.io Client").Connect(host, port)
 	if err != nil {
-		log.Printf("❌ Connect to the zipper server on %s failure with err: %v", zipperAddr, err)
+		logger.Printf("❌ Connect to the zipper server on [%s:%d] failure with err: %v", host, port, err)
 		return nil
 	}
 
 	return &Sender{
 		Stream: cli,
+		logger: logger,
 	}
 }
 
 func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	// when new user connnected, add them to socket.io room
-	server.OnConnect("/", func(s socketio.Conn) error {
+	server.OnConnect("/", func(conn socketio.Conn) error {
 		// userID := getConnectionID(s)
-		log.Printf("========> [%s] Connected", s.ID())
+		s.logger.Printf("========> [%s] Connected", conn.ID())
 		// s.SetContext(userID)
 
-		s.Join(lib.RoomID)
+		conn.Join(lib.RoomID)
 
 		// s.Emit("init", s.ID())
 
@@ -50,12 +52,12 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	// when user disconnect, leave them from socket.io room,``
 	// and notify to others in this room
 	server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
-		log.Printf("========>> ID=%s, Context=%v", conn.ID(), conn.Context())
+		s.logger.Printf("========>> ID=%s, Context=%v", conn.ID(), conn.Context())
 		if conn.Context() == nil {
 			return
 		}
 
-		log.Printf("[%v] | EVT | disconnect | reason=%s", conn.Context().(string), reason)
+		s.logger.Printf("[%v] | EVT | disconnect | reason=%s", conn.Context().(string), reason)
 
 		// broadcast the data to local mesh users via socket.io directly.
 		var payload = &map[string]interface{}{"name": conn.Context().(string)}
@@ -68,55 +70,60 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	})
 
 	server.OnEvent("/", "movement", func(conn socketio.Conn, payload interface{}) {
-		log.Printf("[%s] | EVT | movement | %v - (%T)", conn.Context().(string), payload, payload)
+		s.logger.Printf("[%s] | EVT | movement | %v - (%T)", conn.Context().(string), payload, payload)
 		var signal = payload.(map[string]interface{})
 
-		log.Printf("[%s] EVT | movement | dir=%v - (%T)", conn.Context().(string), signal["dir"], signal["dir"])
+		s.logger.Printf("[%s] EVT | movement | dir=%v - (%T)", conn.Context().(string), signal["dir"], signal["dir"])
 
 		signal["name"] = conn.Context().(string)
 
 		// broadcast the data to local users via socket.io directly.
 		server.BroadcastToRoom("/", lib.RoomID, "movement", signal)
 
-		// send event data to `yomo-zipper` for broadcasting to other mesh nodes
-		data := lib.EventData{
-			Room:  lib.RoomID,
-			Event: "movement",
-			Data:  "movement",
-		}
-		s.send(data)
+		// // send event data to `yomo-zipper` for broadcasting to other mesh nodes
+		// data := lib.EventData{
+		// 	Room:  lib.RoomID,
+		// 	Event: "movement",
+		// 	Data:  "movement",
+		// }
+		// s.send(data)
 	})
 
 	// browser will emit "online" event after user connected to WebSocket, will payload:
 	// {name: "USER_ID"}
 	server.OnEvent("/", "online", func(conn socketio.Conn, payload interface{}) {
-		log.Printf("New connection created: %s", conn.ID())
+		s.logger.Printf("New connection created: %s", conn.ID())
 		var signal = payload.(map[string]interface{})
 		userID := signal["name"]
 
-		log.Printf("[%s] EVT | online", userID)
+		s.logger.Printf("[%s] EVT | online", userID)
 
 		conn.SetContext(userID)
 
-		signal["cc"] = "cccc"
+		signal["timestamp"] = time.Now().Unix()
 
-		// broadcast the data to local users via socket.io directly.
-		server.BroadcastToRoom("/", lib.RoomID, "online", signal)
-		server.BroadcastToRoom("/", lib.RoomID, "ask")
+		// // broadcast the data to local users via socket.io directly.
+		// server.BroadcastToRoom("/", lib.RoomID, "online", signal)
+		// server.BroadcastToRoom("/", lib.RoomID, "ask")
 
-		log.Printf("Broadcasted: %v", signal)
+		// presence := &lib.PresenceData{
+		// 	Room:    lib.RoomID,
+		// 	Event:   "online",
+		// 	Payload: signal,
+		// }
 
-		buf, err := json.Marshal(payload)
+		s.logger.Printf("Broadcasted: %v", signal)
+
+		buf, err := json.Marshal(signal)
 		if err != nil {
-			log.Println(err)
-		} else {
-			log.Printf("-> [%s] | EVT | online | %v | %v", userID, payload, buf)
+			s.logger.Fatalln(err)
+			// return
 		}
-		p, err := s.Stream.Write(buf)
+		_, err = s.Stream.Write(buf)
 		if err != nil {
-			log.Println(err)
+			s.logger.Fatalln(err)
 		} else {
-			log.Printf("-> [%s] | EVT | online | %v | %v", userID, payload, p)
+			s.logger.Printf("-> [%s] | EVT | online | %v", userID, buf)
 		}
 	})
 
@@ -126,48 +133,47 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		var signal = payload.(map[string]interface{})
 		// userID := signal["name"]
 
-		log.Printf("[%s] EVT | sync | pos=%v", conn.Context().(string), signal)
+		s.logger.Printf("[%s] EVT | sync | pos=%v", conn.Context().(string), signal)
 
 		// broadcast the data to local users via socket.io directly.
 		server.BroadcastToRoom("/", lib.RoomID, "sync", signal)
 
-		// send event data to `yomo-zipper` for broadcasting to other mesh nodes
-		data := lib.EventData{
-			Room:  lib.RoomID,
-			Event: "sync",
-			Data:  "state",
-		}
-		s.send(data)
-
+		// // send event data to `yomo-zipper` for broadcasting to other mesh nodes
+		// data := lib.EventData{
+		// 	Room:  lib.RoomID,
+		// 	Event: "sync",
+		// 	Data:  "state",
+		// }
+		// s.send(data)
 	})
 }
 
 func (s *Sender) BroadcastOfflineEvent(room string, eventName string, userID string) {
-	s.send(lib.EventData{
-		Room:  room,
-		Event: eventName,
-		Data:  userID,
-	})
+	// s.send(lib.EventData{
+	// 	Room:  room,
+	// 	Event: eventName,
+	// 	Data:  userID,
+	// })
 }
 
-// send the data to `yomo-zipper`.
-func (s *Sender) send(data lib.EventData) {
-	// init a new Y3 codec.
-	var codec = y3.NewCodec(lib.EventDataKey)
+// // send the data to `yomo-zipper`.
+// func (s *Sender) send(data lib.EventData) {
+// 	// init a new Y3 codec.
+// 	var codec = y3.NewCodec(lib.EventDataKey)
 
-	if s.Stream == nil {
-		return
-	}
+// 	if s.Stream == nil {
+// 		return
+// 	}
 
-	// encode the data via Y3 Codec.
-	buf, _ := codec.Marshal(data)
-	// send the encoded data to `yomo-zipper`.
-	_, err := s.Stream.Write(buf)
+// 	// encode the data via Y3 Codec.
+// 	buf, _ := codec.Marshal(data)
+// 	// send the encoded data to `yomo-zipper`.
+// 	_, err := s.Stream.Write(buf)
 
-	if err != nil {
-		log.Printf("❌ Send to the zipperStream failure with err: %v", err)
-	}
-}
+// 	if err != nil {
+// 		log.Printf("❌ Send to the zipperStream failure with err: %v", err)
+// 	}
+// }
 
 func getConnectionID(conn socketio.Conn) string {
 	return fmt.Sprint(os.Getenv("MESH_ID"), "-", conn.ID())

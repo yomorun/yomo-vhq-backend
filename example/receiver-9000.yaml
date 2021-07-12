@@ -1,3 +1,5 @@
 name: YoMoReceiver-A
-host: 192.168.108.102
+host: localhost
 port: 9000
+sinks:
+- name: Receiver

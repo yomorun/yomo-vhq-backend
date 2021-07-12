@@ -17,11 +17,11 @@ import (
 
 const (
 	socketioAddr = "0.0.0.0:19001"
-	zipperAddr   = "localhost:9000"
+	// zipperAddr   = "localhost:9000"
 	// YoMo server for send messages
-	senderYoMoServer = "192.168.108.102:9000"
+	senderYoMoServer = "localhost:8000"
 	// YoMo server for receive messages
-	receiverYoMoServer = "192.168.108.102:8000"
+	receiverYoMoServer = "localhost:9000"
 )
 
 // var sender *sender.Sender
@@ -39,12 +39,12 @@ func main() {
 
 	// sender will send the data to `yomo-zipper` for stream processing.
 	hostOfSender, portOfSender := getHostAndPort(senderYoMoServer)
-	sender := sender.NewSender(hostOfSender, portOfSender, zipperAddr)
+	sender := sender.NewSender(hostOfSender, portOfSender)
 	go sender.BindConnectionAsStreamDataSource(server)
 
 	// receiver will receive the data from `yomo-zipper` after stream processing.
 	hostOfReceiver, portOfReceiver := getHostAndPort(receiverYoMoServer)
-	receiver, err := receiver.NewReceiver(hostOfReceiver, portOfReceiver, zipperAddr)
+	receiver, err := receiver.NewReceiver(hostOfReceiver, portOfReceiver)
 	go receiver.BindConnectionPresenceStreamProcessing(server)
 
 	// serve socket.io server.
