@@ -1,6 +1,7 @@
 package sender
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -105,14 +106,18 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 
 		log.Printf("Broadcasted: %v", signal)
 
-		// send event data to `yomo-zipper` for broadcasting to other mesh nodes
-		data := lib.EventData{
-			Room:  lib.RoomID,
-			Event: "online",
-			Data:  "state",
+		buf, err := json.Marshal(payload)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("-> [%s] | EVT | online | %v | %v", userID, payload, buf)
 		}
-		s.send(data)
-
+		p, err := s.Stream.Write(buf)
+		if err != nil {
+			log.Println(err)
+		} else {
+			log.Printf("-> [%s] | EVT | online | %v | %v", userID, payload, p)
+		}
 	})
 
 	// browser will emit "sync" event to tell others my position, the payload looks like
