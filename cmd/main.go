@@ -18,11 +18,11 @@ import (
 const (
 	socketioAddr = "0.0.0.0:19001"
 	zipperAddr   = "localhost:9000"
+	// YoMo server for send messages
+	senderYoMoServer = "192.168.108.102:9000"
+	// YoMo server for receive messages
+	receiverYoMoServer = "192.168.108.102:8000"
 )
-
-var urls = strings.Split(zipperAddr, ":")
-var host = urls[0]
-var port, _ = strconv.Atoi(urls[1])
 
 // var sender *sender.Sender
 var serverRegion = os.Getenv("MESH_ID")
@@ -38,11 +38,13 @@ func main() {
 	defer server.Close()
 
 	// sender will send the data to `yomo-zipper` for stream processing.
-	sender := sender.NewSender(host, port, zipperAddr)
+	hostOfSender, portOfSender := getHostAndPort(senderYoMoServer)
+	sender := sender.NewSender(hostOfSender, portOfSender, zipperAddr)
 	go sender.BindConnectionAsStreamDataSource(server)
 
 	// receiver will receive the data from `yomo-zipper` after stream processing.
-	receiver, err := receiver.NewReceiver(host, port, zipperAddr)
+	hostOfReceiver, portOfReceiver := getHostAndPort(receiverYoMoServer)
+	receiver, err := receiver.NewReceiver(hostOfReceiver, portOfReceiver, zipperAddr)
 	go receiver.BindConnectionPresenceStreamProcessing(server)
 
 	// serve socket.io server.
@@ -89,4 +91,11 @@ func ginMiddleware() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func getHostAndPort(url string) (host string, port int) {
+	var urls = strings.Split(url, ":")
+	host = urls[0]
+	port, _ = strconv.Atoi(urls[1])
+	return host, port
 }
