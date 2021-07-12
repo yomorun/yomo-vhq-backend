@@ -4,6 +4,8 @@ import (
 	"log"
 	"os"
 
+	socketio "github.com/googollee/go-socket.io"
+
 	"github.com/yomorun/y3-codec-golang"
 	"github.com/yomorun/yomo/pkg/client"
 	"github.com/yomorun/yomo/pkg/rx"
@@ -12,9 +14,11 @@ import (
 
 var logger *log.Logger = log.New(os.Stdout, "[Receiver] ", log.LstdFlags)
 
+var ws *socketio.Server
+
 // setupReceiver connects to `yomo-zipper` as a `yomo-sink`.
 // receiver will receive the data from yomo-zipper after stream processing and broadcast it to socket.io clients.
-func NewReceiver(host string, port int) error {
+func NewReceiver(host string, port int, websocket *socketio.Server) error {
 	logger.Printf("------------Receiver init------------ host=%s, port=%d", host, port)
 	cli, err := client.NewServerless("Receiver").Connect(host, port)
 	if err != nil {
@@ -25,7 +29,13 @@ func NewReceiver(host string, port int) error {
 
 	go cli.Pipe(receiverHandler)
 
+	hookToSocketIO(websocket)
+
 	return nil
+}
+
+func hookToSocketIO(websocket *socketio.Server) {
+	ws = websocket
 }
 
 // broadcast the events the geo-distributed users.
@@ -38,6 +48,13 @@ var broadcastEventToUsers = func(v []byte) (interface{}, error) {
 		logger.Printf("❌ Decode the data to struct failure with err: %v", err)
 		return nil, err
 	}
+
+	logger.Printf("=====broadcastEventToUsers mold: %v", mold)
+
+	// broadcast the data to local users via socket.io directly.
+	ws.BroadcastToRoom("/", lib.RoomID, "online", &map[string]interface{}{"name": mold.Name, "timestamp": mold.Timestamp})
+	ws.BroadcastToRoom("/", lib.RoomID, "ask")
+
 	return mold, nil
 }
 
@@ -45,7 +62,7 @@ var broadcastEventToUsers = func(v []byte) (interface{}, error) {
 func receiverHandler(rxstream rx.RxStream) rx.RxStream {
 	logger.Println(">>>>>>>>>> receiverHandler <<<<<<<<<<<<<<")
 	stream := rxstream.
-		Subscribe(0x10).
+		Subscribe(0x11).
 		OnObserve(broadcastEventToUsers).
 		Encode(0x12)
 

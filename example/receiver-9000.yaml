@@ -3,4 +3,3 @@ host: localhost
 port: 9000
 sinks:
   - name: Receiver
-  - name: fr
