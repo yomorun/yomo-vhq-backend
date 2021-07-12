@@ -1,7 +1,6 @@
 package sender
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -10,6 +9,7 @@ import (
 
 	socketio "github.com/googollee/go-socket.io"
 
+	"github.com/yomorun/y3-codec-golang"
 	"github.com/yomorun/yomo/pkg/client"
 	"yomo.run/vhq/pkg/lib"
 )
@@ -20,10 +20,12 @@ type Sender struct {
 	logger *log.Logger
 }
 
+var codec = y3.NewCodec(0x10)
+
 // NewSender send presence as stream to yomo-send-server
 func NewSender(host string, port int) *Sender {
 	logger := log.New(os.Stdout, "[Sender] ", log.LstdFlags)
-	cli, err := client.NewSource("Socket.io Client").Connect(host, port)
+	cli, err := client.NewSource("Socket.io").Connect(host, port)
 	if err != nil {
 		logger.Printf("❌ Connect to the zipper server on [%s:%d] failure with err: %v", host, port, err)
 		return nil
@@ -100,31 +102,36 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 
 		conn.SetContext(userID)
 
-		signal["timestamp"] = time.Now().Unix()
-
 		// // broadcast the data to local users via socket.io directly.
 		// server.BroadcastToRoom("/", lib.RoomID, "online", signal)
 		// server.BroadcastToRoom("/", lib.RoomID, "ask")
 
-		// presence := &lib.PresenceData{
-		// 	Room:    lib.RoomID,
-		// 	Event:   "online",
-		// 	Payload: signal,
-		// }
+		presence := lib.PresenceOnline{
+			Room:      lib.RoomID,
+			Event:     "online",
+			Name:      signal["name"].(string),
+			Timestamp: time.Now().Unix(),
+		}
 
-		s.logger.Printf("Broadcasted: %v", signal)
+		s.logger.Printf("Broadcasted: %v", presence)
 
-		buf, err := json.Marshal(signal)
+		buf, err := codec.Marshal(presence)
 		if err != nil {
-			s.logger.Fatalln(err)
+			s.logger.Println("y3 ERR--")
+			// s.logger.Fatalln(err)
 			// return
+		} else {
+			s.logger.Printf("post-y3: buf=%v", buf)
 		}
 		_, err = s.Stream.Write(buf)
 		if err != nil {
-			s.logger.Fatalln(err)
+			s.logger.Println("send ERR-- --")
+			// s.logger.Fatalln(err)
 		} else {
 			s.logger.Printf("-> [%s] | EVT | online | %v", userID, buf)
 		}
+
+		conn.Emit("hey", "haah")
 	})
 
 	// browser will emit "sync" event to tell others my position, the payload looks like
