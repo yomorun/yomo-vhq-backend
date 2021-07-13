@@ -107,10 +107,12 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		// server.BroadcastToRoom("/", lib.RoomID, "ask")
 
 		presence := lib.PresenceOnline{
-			Room:      lib.RoomID,
-			Event:     "online",
-			Name:      signal["name"].(string),
-			Timestamp: time.Now().Unix(),
+			Base: lib.PresenceBase{
+				Room:      lib.RoomID,
+				Event:     "online",
+				Timestamp: time.Now().Unix(),
+			},
+			Name: signal["name"].(string),
 		}
 
 		s.logger.Printf("Broadcasted: %v", presence)
