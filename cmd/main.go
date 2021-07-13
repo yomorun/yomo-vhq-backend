@@ -17,17 +17,32 @@ import (
 
 const (
 	socketioAddr = "0.0.0.0:19001"
-	// YoMo server for send messages
-	senderYoMoServer = "localhost:8000"
-	// YoMo server for receive messages
-	receiverYoMoServer = "localhost:9000"
 )
+
+// YoMo server for send messages
+var senderYoMoServer string
+
+// YoMo server for receive messages
+var receiverYoMoServer string
 
 // var sender *sender.Sender
 var serverRegion = os.Getenv("MESH_ID")
 
 func main() {
 	log.Printf("MESH_ID: %s", serverRegion)
+
+	// the YoMo server responsible for send messages
+	senderYoMoServer = os.Getenv("SENDER")
+	if len(senderYoMoServer) == 0 {
+		senderYoMoServer = "localhost:8000"
+	}
+
+	// the YoMo server responsible for receive messages
+	receiverYoMoServer = os.Getenv("RECEIVER")
+	if len(receiverYoMoServer) == 0 {
+		receiverYoMoServer = "localhost:9000"
+	}
+
 	// create the socket.io server, handle user connections.
 	server, err := newSocketIOServer()
 	if err != nil {
@@ -86,7 +101,6 @@ func ginMiddleware() gin.HandlerFunc {
 		}
 
 		c.Request.Header.Del("Origin")
-
 		c.Next()
 	}
 }
