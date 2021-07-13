@@ -56,13 +56,11 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		s.log.Printf("[%s] | EVT | OnDisconnect | reason=%s\n", userID, reason)
 
 		// broadcast to all receivers I am offline
-		s.dispatchToYoMoReceivers(lib.PresenceOnline{
-			Base: lib.PresenceBase{
-				Room:      lib.RoomID,
-				Event:     "offline",
-				Timestamp: time.Now().Unix(),
-			},
-			Name: userID,
+		s.dispatchToYoMoReceivers(lib.Presence{
+			Room:      lib.RoomID,
+			Event:     "offline",
+			Timestamp: time.Now().Unix(),
+			Payload:   []byte(userID),
 		})
 
 		// leave from socket.io room
@@ -70,23 +68,31 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	})
 
 	server.OnEvent("/", "movement", func(conn socketio.Conn, payload interface{}) {
-		s.log.Printf("[%s] | EVT | movement | %v - (%T)\n", conn.Context().(string), payload, payload)
+		userID := conn.Context().(string)
+		s.log.Printf("[%s] | EVT | movement | %v - (%T)\n", userID, payload, payload)
+
 		var signal = payload.(map[string]interface{})
+		s.log.Printf("[%s] EVT | movement | dir=%v - (%T)\n", userID, signal["dir"], signal["dir"])
 
-		s.log.Printf("[%s] EVT | movement | dir=%v - (%T)\n", conn.Context().(string), signal["dir"], signal["dir"])
-
-		signal["name"] = conn.Context().(string)
+		signal["name"] = userID
 
 		// broadcast the data to local users via socket.io directly.
 		server.BroadcastToRoom("/", lib.RoomID, "movement", signal)
 
-		// // send event data to `yomo-zipper` for broadcasting to other mesh nodes
-		// data := lib.EventData{
-		// 	Room:  lib.RoomID,
-		// 	Event: "movement",
-		// 	Data:  "movement",
-		// }
-		// s.send(data)
+		// TODO: broadcast to all receivers
+		// var dir = signal["dir"].(map[string]interface{})
+		// s.dispatchToYoMoReceivers(lib.PresenceMovement{
+		// 	Base: lib.PresenceBase{
+		// 		Room:      lib.RoomID,
+		// 		Event:     "movement",
+		// 		Timestamp: time.Now().Unix(),
+		// 	},
+		// 	Name: userID,
+		// 	Direction: lib.Position{
+		// 		X: dir["x"].(int),
+		// 		Y: dir["y"].(int),
+		// 	},
+		// })
 	})
 
 	// browser will emit "online" event when user connected to WebSocket, with payload:
@@ -95,22 +101,17 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		// s.log.Printf("(online) New connection created: %s\n", conn.ID())
 		// get the userID from websocket
 		var signal = payload.(map[string]interface{})
-		userID := signal["name"]
+		userID := signal["name"].(string)
 		s.log.Printf("[%s] EVT | online\n", userID)
 		// set userID to websocket connection context
 		conn.SetContext(userID)
 
-		presence := lib.PresenceOnline{
-			Base: lib.PresenceBase{
-				Room:      lib.RoomID,
-				Event:     "online",
-				Timestamp: time.Now().Unix(),
-			},
-			Name: signal["name"].(string),
-		}
-
-		// sent to all Presence-Receiver Servers
-		s.dispatchToYoMoReceivers(presence)
+		s.dispatchToYoMoReceivers(lib.Presence{
+			Room:      lib.RoomID,
+			Event:     "offline",
+			Timestamp: time.Now().Unix(),
+			Payload:   []byte(userID),
+		})
 	})
 
 	// browser will emit "sync" event to tell others my position, the payload looks like
@@ -134,14 +135,6 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	})
 }
 
-func (s *Sender) BroadcastOfflineEvent(room string, eventName string, userID string) {
-	// s.send(lib.EventData{
-	// 	Room:  room,
-	// 	Event: eventName,
-	// 	Data:  userID,
-	// })
-}
-
 // send data to downstream Presence-Receiver Servers
 func (s *Sender) dispatchToYoMoReceivers(payload interface{}) (int, error) {
 	s.log.Printf("dispatchToYoMoReceivers: %v\n", payload)
@@ -157,12 +150,6 @@ func (s *Sender) dispatchToYoMoReceivers(payload interface{}) (int, error) {
 	}
 
 	s.log.Printf("dispatchToYoMoReceivers done: (sent %d bytes) % X\n", sent, buf)
-
-	// // this a test trying to decode y3 buf
-	// var mold lib.PresenceOnline
-	// err = y3.ToObject(buf, &mold)
-	// s.log.Printf("=======y3.ToObject err=%v", err)
-	// s.log.Printf("=======y3.ToObject mold=%v", mold)
 
 	return sent, nil
 }

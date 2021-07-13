@@ -1,6 +1,8 @@
 package receiver
 
 import (
+	"context"
+
 	color "github.com/fatih/color"
 	socketio "github.com/googollee/go-socket.io"
 	"github.com/yomorun/y3-codec-golang"
@@ -37,48 +39,72 @@ func hookToSocketIO(websocket *socketio.Server) {
 }
 
 // broadcast the events the geo-distributed users.
-var broadcastEventToUsers = func(v []byte) (interface{}, error) {
-	log.Printf("broadcastEventToUsers : %v\n", v)
+var decode = func(v []byte) (interface{}, error) {
+	log.Printf("decode : %v\n", v)
 	// broadcast the entity to local users via socket.io directly.
-	var entity lib.PresenceOnline
-	err := y3.ToObject(v, &entity)
+	var presence lib.Presence
+	err := y3.ToObject(v, &presence)
 	if err != nil {
-		log.Printf("❌ Decode the entity to struct failure with err: %v\n", err)
+		log.Printf("❌ Decode the presence to struct failure with err: %v\n", err)
 		return nil, err
 	}
 
-	log.Printf("broadcastEventToUsers entity: %v\n", entity)
+	return presence, nil
+}
 
-	switch entity.Base.Event {
+var messageHandler = func(_ context.Context, v interface{}) (interface{}, error) {
+	log.Printf("messageHandler: %v\n", v)
+
+	presence := v.(lib.Presence)
+
+	switch presence.Event {
 	case "online":
-		processEventOnline(entity)
+		processEventOnline(presence)
 	case "offline":
-		processEventOffline(entity)
+		processEventOffline(presence)
+		// case "movement":
+		// 	processMovement(presence)
 	}
 
-	return entity, nil
+	return v, nil
 }
 
 // receiverHandler will handle entity in Rx way
 func receiverHandler(rxstream rx.RxStream) rx.RxStream {
 	stream := rxstream.
 		Subscribe(0x10).
-		OnObserve(broadcastEventToUsers)
+		OnObserve(decode).
+		Map(messageHandler)
 
 	return stream
 }
 
 // handle "online" event
-func processEventOnline(entity lib.PresenceOnline) {
-	log.Printf("process event Online, entity: %v\n", entity)
-	presence := &map[string]interface{}{"name": entity.Name, "timestamp": entity.Base.Timestamp}
-	ws.BroadcastToRoom("/", lib.RoomID, "online", presence)
+func processEventOnline(presence lib.Presence) {
+	log.Printf("process event Online, presence: %v\n", presence)
+	name := string(presence.Payload)
+	data := &map[string]interface{}{"name": name, "timestamp": presence.Timestamp}
+	ws.BroadcastToRoom("/", lib.RoomID, "online", data)
 	ws.BroadcastToRoom("/", lib.RoomID, "ask")
 }
 
 // handle "offline" event
-func processEventOffline(entity lib.PresenceOnline) {
-	log.Printf("process event Offline, entity: %v\n", entity)
-	presence := &map[string]interface{}{"name": entity.Name}
-	ws.BroadcastToRoom("/", lib.RoomID, "offline", presence)
+func processEventOffline(presence lib.Presence) {
+	log.Printf("process event Offline, presence: %v\n", presence)
+	name := string(presence.Payload)
+	data := &map[string]interface{}{"name": name}
+	ws.BroadcastToRoom("/", lib.RoomID, "offline", data)
 }
+
+// // handle "movement" event
+// func processMovement(presence lib.Presence) {
+// 	log.Printf("process event Movement, presence: %v\n", presence)
+// 	presence := &map[string]interface{}{
+// 		"name": presence.Name,
+// 		"dir": &map[string]interface{}{
+// 			"x": presence.Direction.X,
+// 			"y": presence.Direction.Y,
+// 		},
+// 	}
+// 	ws.BroadcastToRoom("/", lib.RoomID, "movement", presence)
+// }
