@@ -17,7 +17,6 @@ import (
 
 const (
 	socketioAddr = "0.0.0.0:19001"
-	// zipperAddr   = "localhost:9000"
 	// YoMo server for send messages
 	senderYoMoServer = "localhost:8000"
 	// YoMo server for receive messages

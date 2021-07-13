@@ -71,12 +71,11 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	// browser will emit "online" event when user connected to WebSocket, with payload:
 	// {name: "USER_ID"}
 	server.OnEvent("/", "online", func(conn socketio.Conn, payload interface{}) {
-		// s.logger.Printf("(online) New connection created: %s\n", conn.ID())
 		// get the userID from websocket
 		var signal = payload.(map[string]interface{})
 		userID := signal["name"].(string)
 		s.logger.Printf("[%s] | EVT | online\n", userID)
-		// set userID to websocket connection context
+		// store userID to websocket connection context
 		conn.SetContext(userID)
 
 		s.dispatchToYoMoReceivers(lib.Presence{
@@ -126,7 +125,7 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	})
 }
 
-// send data to downstream Presence-Receiver Servers
+// dispatch data to all downstream Presence-Receiver Servers
 func (s *Sender) dispatchToYoMoReceivers(payload interface{}) (int, error) {
 	s.logger.Printf("dispatchToYoMoReceivers: %v\n", payload)
 	buf, err := codec.Marshal(payload)
@@ -139,8 +138,5 @@ func (s *Sender) dispatchToYoMoReceivers(payload interface{}) (int, error) {
 		s.logger.Printf("Stream.Write err: %v\n", err)
 		return 0, err
 	}
-
-	// s.logger.Printf("dispatchToYoMoReceivers done: (sent %d bytes) % X\n", sent, buf)
-
 	return sent, nil
 }
