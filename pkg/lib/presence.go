@@ -2,6 +2,8 @@ package lib
 
 import (
 	"time"
+
+	"github.com/yomorun/y3-codec-golang"
 )
 
 const RoomID = "yomo-vhq"
@@ -21,31 +23,32 @@ type PresenceOnlineState struct {
 
 // PresenceMovement is sent to all users when a user moves
 type PresenceMovement struct {
-	Name      string   `y3:"0x21"`
-	Direction Position `y3:"0x22"`
+	Name      string `y3:"0x21"`
+	Direction Vector `y3:"0x22"`
 }
 
 // PresenceSync event will be sent to all users when a user need sync state
 type PresenceSync struct {
-	Position Position `y3:"0x21"`
+	Position Vector `y3:"0x21"`
 }
 
 // Position represents by (x,y) corrdinate of user
-type Position struct {
-	X int `y3:"0x31"`
-	Y int `y3:"0x32"`
+type Vector struct {
+	X float64 `y3:"0x31"`
+	Y float64 `y3:"0x32"`
 }
 
-func EncodeOnlineOfflineState(event string, name string) Presence {
-	// // encode name to y3, as the payload of presence
-	// encoder := y3.NewPrimitivePacketEncoder(0x14)
-	// encoder.SetBytes([]byte(name))
+func EncodeMovement(name string, x float64, y float64) (Presence, error) {
+	codec := y3.NewCodec(0x30)
+	buf, err := codec.Marshal(PresenceMovement{
+		Name:      name,
+		Direction: Vector{X: x, Y: y},
+	})
 
 	return Presence{
 		Room:      RoomID,
-		Event:     event,
+		Event:     "movement",
 		Timestamp: time.Now().Unix(),
-		// Payload:   encoder.Encode(),
-		Payload: []byte(name),
-	}
+		Payload:   buf,
+	}, err
 }

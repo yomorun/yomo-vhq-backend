@@ -62,8 +62,8 @@ var messageHandler = func(_ context.Context, v interface{}) (interface{}, error)
 		processEventOnline(presence)
 	case "offline":
 		processEventOffline(presence)
-		// case "movement":
-		// 	processMovement(presence)
+	case "movement":
+		processMovement(presence)
 	}
 
 	return v, nil
@@ -96,15 +96,24 @@ func processEventOffline(presence lib.Presence) {
 	ws.BroadcastToRoom("/", lib.RoomID, "offline", data)
 }
 
-// // handle "movement" event
-// func processMovement(presence lib.Presence) {
-// 	log.Printf("process event Movement, presence: %v\n", presence)
-// 	presence := &map[string]interface{}{
-// 		"name": presence.Name,
-// 		"dir": &map[string]interface{}{
-// 			"x": presence.Direction.X,
-// 			"y": presence.Direction.Y,
-// 		},
-// 	}
-// 	ws.BroadcastToRoom("/", lib.RoomID, "movement", presence)
-// }
+// handle "movement" event
+func processMovement(presence lib.Presence) {
+	log.Printf("process event Movement, presence: %v\n", presence)
+	// decode presence.payload from []byte to PresenceMovement
+	var movement lib.PresenceMovement
+	err := y3.ToObject(presence.Payload, &movement)
+
+	if err != nil {
+		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
+	} else {
+		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement: %v\n", movement)
+		data := &map[string]interface{}{
+			"name": movement.Name,
+			"dir": &map[string]interface{}{
+				"x": movement.Direction.X,
+				"y": movement.Direction.Y,
+			},
+		}
+		ws.BroadcastToRoom("/", lib.RoomID, "movement", data)
+	}
+}
