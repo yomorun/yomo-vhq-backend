@@ -64,6 +64,8 @@ var messageHandler = func(_ context.Context, v interface{}) (interface{}, error)
 		processEventOffline(presence)
 	case "movement":
 		processMovement(presence)
+	case "sync":
+		processSync(presence)
 	}
 
 	return v, nil
@@ -115,5 +117,27 @@ func processMovement(presence lib.Presence) {
 			},
 		}
 		ws.BroadcastToRoom("/", lib.RoomID, "movement", data)
+	}
+}
+
+// handle "sync" event
+func processSync(presence lib.Presence) {
+	log.Printf("process event Sync, presence: %v\n", presence)
+	// decode presence.payload from []byte to PresenceSync
+	var sync lib.PresenceSync
+	err := y3.ToObject(presence.Payload, &sync)
+
+	if err != nil {
+		log.Printf("(processSync) Decode the presence.payload to PresenceSync failure with err: %v\n", err)
+	} else {
+		log.Printf("(processSync) Decode the presence.payload to PresenceSync: %v\n", sync)
+		data := &map[string]interface{}{
+			"name": sync.Name,
+			"pos": &map[string]interface{}{
+				"x": sync.Position.X,
+				"y": sync.Position.Y,
+			},
+		}
+		ws.BroadcastToRoom("/", lib.RoomID, "sync", data)
 	}
 }

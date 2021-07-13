@@ -27,9 +27,10 @@ type PresenceMovement struct {
 	Direction Vector `y3:"0x22"`
 }
 
-// PresenceSync event will be sent to all users when a user need sync state
+// PresenceMovement is sent to all users when a user moves
 type PresenceSync struct {
-	Position Vector `y3:"0x21"`
+	Name     string `y3:"0x21"`
+	Position Vector `y3:"0x22"`
 }
 
 // Position represents by (x,y) corrdinate of user
@@ -48,6 +49,21 @@ func EncodeMovement(name string, x float64, y float64) (Presence, error) {
 	return Presence{
 		Room:      RoomID,
 		Event:     "movement",
+		Timestamp: time.Now().Unix(),
+		Payload:   buf,
+	}, err
+}
+
+func EncodeSync(name string, x float64, y float64) (Presence, error) {
+	codec := y3.NewCodec(0x30)
+	buf, err := codec.Marshal(PresenceSync{
+		Name:     name,
+		Position: Vector{X: x, Y: y},
+	})
+
+	return Presence{
+		Room:      RoomID,
+		Event:     "sync",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
 	}, err

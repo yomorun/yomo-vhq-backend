@@ -68,27 +68,6 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		server.LeaveRoom("/", lib.RoomID, conn)
 	})
 
-	server.OnEvent("/", "movement", func(conn socketio.Conn, payload interface{}) {
-		userID := conn.Context().(string)
-		s.logger.Printf("[%s] | EVT | movement | %v - (%T)\n", userID, payload, payload)
-
-		signal, ok := payload.(map[string]interface{})
-		s.logger.Printf("[%s] | EVT | movement | ok=%v dir=%v - (%T)\n", ok, userID, signal["dir"], signal["dir"])
-
-		signal["name"] = userID
-
-		// broadcast to all receivers
-		dir := signal["dir"].(map[string]interface{})
-		p, err := lib.EncodeMovement(userID, dir["x"].(float64), dir["y"].(float64))
-
-		if err != nil {
-			logger.Printf("ERR | lib.EncodeMovement err: %v\n", err)
-		} else {
-			// s.logger.Printf("[%s] | EVT | movement | p=%v\n", userID, p)
-			s.dispatchToYoMoReceivers(p)
-		}
-	})
-
 	// browser will emit "online" event when user connected to WebSocket, with payload:
 	// {name: "USER_ID"}
 	server.OnEvent("/", "online", func(conn socketio.Conn, payload interface{}) {
@@ -102,30 +81,48 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 
 		s.dispatchToYoMoReceivers(lib.Presence{
 			Room:      lib.RoomID,
-			Event:     "offline",
+			Event:     "online",
 			Timestamp: time.Now().Unix(),
 			Payload:   []byte(userID),
 		})
 	})
 
+	// browser will emit "movement" event when user moving around, with payload:
+	// {name: "USER_ID", dir: {x:1, y:0}}
+	server.OnEvent("/", "movement", func(conn socketio.Conn, payload interface{}) {
+		userID := conn.Context().(string)
+		s.logger.Printf("[%s] | EVT | movement | %v - (%T)\n", userID, payload, payload)
+
+		signal := payload.(map[string]interface{})
+		dir := signal["dir"].(map[string]interface{})
+
+		// broadcast to all receivers
+		p, err := lib.EncodeMovement(userID, dir["x"].(float64), dir["y"].(float64))
+
+		if err != nil {
+			logger.Printf("ERR | lib.EncodeMovement err: %v\n", err)
+		} else {
+			s.dispatchToYoMoReceivers(p)
+		}
+	})
+
 	// browser will emit "sync" event to tell others my position, the payload looks like
 	// {name: "USER_ID", pos: {x: 0, y: 0}}
 	server.OnEvent("/", "sync", func(conn socketio.Conn, payload interface{}) {
-		var signal = payload.(map[string]interface{})
-		// userID := signal["name"]
+		userID := conn.Context().(string)
+		s.logger.Printf("[%s] | EVT | sync | %v - (%T)\n", userID, payload, payload)
 
-		s.logger.Printf("[%s] | EVT | sync | pos=%v", conn.Context().(string), signal)
+		signal := payload.(map[string]interface{})
+		pos := signal["pos"].(map[string]interface{})
 
-		// broadcast the data to local users via socket.io directly.
-		server.BroadcastToRoom("/", lib.RoomID, "sync", signal)
+		// broadcast to all receivers
+		p, err := lib.EncodeSync(userID, pos["x"].(float64), pos["y"].(float64))
 
-		// // send event data to `yomo-zipper` for broadcasting to other mesh nodes
-		// data := lib.EventData{
-		// 	Room:  lib.RoomID,
-		// 	Event: "sync",
-		// 	Data:  "state",
-		// }
-		// s.send(data)
+		if err != nil {
+			logger.Printf("ERR | lib.EncodeSync err: %v\n", err)
+		} else {
+			s.dispatchToYoMoReceivers(p)
+		}
 	})
 }
 
