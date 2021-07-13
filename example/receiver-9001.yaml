@@ -1,0 +1,5 @@
+name: YoMoReceiver-B
+host: localhost
+port: 9001
+sinks:
+  - name: Receiver
