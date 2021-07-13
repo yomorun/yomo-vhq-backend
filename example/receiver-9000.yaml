@@ -2,4 +2,4 @@ name: YoMoReceiver-A
 host: localhost
 port: 9000
 sinks:
-  - name: Receiver
+  - name: PresenceHandler

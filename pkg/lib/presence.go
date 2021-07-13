@@ -1,5 +1,7 @@
 package lib
 
+const RoomID = "yomo-vhq"
+
 // PresenceBase is the base structure for presence
 type PresenceBase struct {
 	Room      string `y3:"0x11"`

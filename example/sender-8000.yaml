@@ -2,4 +2,3 @@ name: YoMoSender-A
 host: localhost
 port: 8000
 flows:
-  - name: fake-flow
