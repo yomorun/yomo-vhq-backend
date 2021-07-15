@@ -67,6 +67,11 @@ func main() {
 	router.Use(ginMiddleware())
 	router.GET("/socket.io/*any", gin.WrapH(server))
 	router.POST("/socket.io/*any", gin.WrapH(server))
+	router.GET("/whoami", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"message": os.Getenv("MESH_ID"),
+		})
+	})
 	router.Run(socketioAddr)
 
 	log.Print("✅ Serving socket.io on ", socketioAddr)
