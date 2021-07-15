@@ -88,7 +88,8 @@ func processEventOnline(presence lib.Presence) {
 	name := string(presence.Payload)
 	data := &map[string]interface{}{"name": name, "timestamp": presence.Timestamp}
 	ws.BroadcastToRoom("/", lib.RoomID, "online", data)
-	ws.BroadcastToRoom("/", lib.RoomID, "ask", os.Getenv("MESH_ID"))
+	ws.BroadcastToRoom("/", lib.RoomID, "ask")
+	ws.BroadcastToRoom("/", lib.RoomID, "mesh_id", os.Getenv("MESH_ID"))
 }
 
 // handle "offline" event
