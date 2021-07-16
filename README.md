@@ -88,17 +88,6 @@ $ MESH_ID=Local SENDER=localhost:8000 RECEIVER=localhost:9000 go run cmd/main.go
 2021/07/13 16:48:37 ✅ Connected to zipper localhost:9000.
 ```
 
-_below is old one_
-
-```bash
-$ REGION=CN MACROMETA_API_KEY=your-macrometa-apikey go run main.go
-2021/06/07 22:33:18 Connecting to zipper localhost:9000 ...
-2021/06/07 22:33:18 ✅ Connected to zipper localhost:9000
-2021/06/07 22:33:18 Starting socket.io server...
-```
-
-This example uses [Macrometa KV Datastore](https://www.macrometa.com/products/nosql/kv) to store the global state, you can signup a macrometa and create a K/V collection (`VHQ`) for testing. Then you can generate a new [API key](https://gdn.paas.macrometa.io/#accounts/apikeys) in your Macrometa account and set it to the environment variable `MACROMETA_API_KEY`.
-
 ### 6. Open browser
 
 http://localhost:3000/
