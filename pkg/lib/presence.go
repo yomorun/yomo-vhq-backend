@@ -18,7 +18,8 @@ type Presence struct {
 
 // PresenceOnline event will be sent to all users when a user goes online
 type PresenceOnlineState struct {
-	Name string `y3:"0x21"`
+	Name   string `y3:"0x21"`
+	Avatar string `y3:"0x22"`
 }
 
 // PresenceMovement is sent to all users when a user moves
@@ -31,6 +32,7 @@ type PresenceMovement struct {
 type PresenceSync struct {
 	Name     string `y3:"0x21"`
 	Position Vector `y3:"0x22"`
+	Avatar   string `y3:"0x23"`
 }
 
 // Position represents by (x,y) corrdinate of user
@@ -54,16 +56,34 @@ func EncodeMovement(name string, x float64, y float64) (Presence, error) {
 	}, err
 }
 
-func EncodeSync(name string, x float64, y float64) (Presence, error) {
+func EncodeSync(name string, x float64, y float64, avatar string) (Presence, error) {
 	codec := y3.NewCodec(0x30)
+
 	buf, err := codec.Marshal(PresenceSync{
 		Name:     name,
 		Position: Vector{X: x, Y: y},
+		Avatar:   avatar,
 	})
 
 	return Presence{
 		Room:      RoomID,
 		Event:     "sync",
+		Timestamp: time.Now().Unix(),
+		Payload:   buf,
+	}, err
+}
+
+func EncodeOnline(name string, avatar string) (Presence, error) {
+	codec := y3.NewCodec(0x30)
+
+	buf, err := codec.Marshal(PresenceOnlineState{
+		Name:   name,
+		Avatar: avatar,
+	})
+
+	return Presence{
+		Room:      RoomID,
+		Event:     "online",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
 	}, err

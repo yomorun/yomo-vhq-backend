@@ -74,16 +74,17 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		// get the userID from websocket
 		var signal = payload.(map[string]interface{})
 		userID := signal["name"].(string)
-		s.logger.Printf("[%s] | EVT | online\n", userID)
+		s.logger.Printf("[%s] | EVT | online | %v\n", userID, signal)
 		// store userID to websocket connection context
 		conn.SetContext(userID)
 
-		s.dispatchToYoMoReceivers(lib.Presence{
-			Room:      lib.RoomID,
-			Event:     "online",
-			Timestamp: time.Now().Unix(),
-			Payload:   []byte(userID),
-		})
+		p, err := lib.EncodeOnline(userID, signal["avatar"].(string))
+
+		if err != nil {
+			logger.Printf("ERR | lib.EncodeOnline err: %v\n", err)
+		} else {
+			s.dispatchToYoMoReceivers(p)
+		}
 	})
 
 	// browser will emit "movement" event when user moving around, with payload:
@@ -114,8 +115,10 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		signal := payload.(map[string]interface{})
 		pos := signal["pos"].(map[string]interface{})
 
+		s.logger.Printf("--------------avatar------", signal["avatar"].(string))
+
 		// broadcast to all receivers
-		p, err := lib.EncodeSync(userID, pos["x"].(float64), pos["y"].(float64))
+		p, err := lib.EncodeSync(userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string))
 
 		if err != nil {
 			logger.Printf("ERR | lib.EncodeSync err: %v\n", err)

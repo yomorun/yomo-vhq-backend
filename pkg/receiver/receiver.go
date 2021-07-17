@@ -85,11 +85,17 @@ func receiverHandler(rxstream rx.RxStream) rx.RxStream {
 // handle "online" event
 func processEventOnline(presence lib.Presence) {
 	log.Printf("process event Online, presence: %v\n", presence)
-	name := string(presence.Payload)
-	data := &map[string]interface{}{"name": name, "timestamp": presence.Timestamp}
-	ws.BroadcastToRoom("/", lib.RoomID, "online", data)
-	ws.BroadcastToRoom("/", lib.RoomID, "ask")
-	ws.BroadcastToRoom("/", lib.RoomID, "mesh_id", os.Getenv("MESH_ID"))
+	// decode presence.payload from []byte to PresenceOnlineState
+	var online lib.PresenceOnlineState
+	err := y3.ToObject(presence.Payload, &online)
+	if err != nil {
+		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
+	} else {
+		data := &map[string]interface{}{"name": online.Name, "timestamp": presence.Timestamp, "avatar": online.Avatar}
+		ws.BroadcastToRoom("/", lib.RoomID, "online", data)
+		ws.BroadcastToRoom("/", lib.RoomID, "ask")
+		ws.BroadcastToRoom("/", lib.RoomID, "mesh_id", os.Getenv("MESH_ID"))
+	}
 }
 
 // handle "offline" event
@@ -139,6 +145,7 @@ func processSync(presence lib.Presence) {
 				"x": sync.Position.X,
 				"y": sync.Position.Y,
 			},
+			"avatar": sync.Avatar,
 		}
 		ws.BroadcastToRoom("/", lib.RoomID, "sync", data)
 	}
