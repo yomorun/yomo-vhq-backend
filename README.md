@@ -2,7 +2,7 @@
 
 This showcase demonstrates how to build a realtime [Presence](https://en.wikipedia.org/wiki/Presence_information) Sync Service of [Metaverse Workplace - Virtual Headquarters](https://techcrunch.com/2020/11/18/virtual-hqs-race-to-win-over-a-remote-work-fatigued-market/) with Geo-distributed Cloud Architecture by [YoMo](https://github.com/yomorun/yomo) and [Socket.IO](https://socket.io/).
 
-Nowadays, users care about low-latency event transfermation, but backend services usually deployed to a dedicated cloud region, CDN is used for static resources, we need a CDN-like architecture but for upstream data and realtime computing. This showcase introduce a easy way to reach the goal.
+Nowadays, users care about low-latency event streaming. But backend services usually deployed to a dedicated cloud region and CDN is used for static resources. We need a CDN-like architecture but for upstreaming data and realtime computing. This showcase introduce a easy way to reach the goal.
 
 ## 🧑🏼‍🏫 Architecture Explanation
 
@@ -12,7 +12,7 @@ There are 3 parts in this Realtime Presence Sync Service:
 2. **Presence Sender Service**: a YoMo Server responsible for send presence to other nodes 
 3. **Presence Receiver Service**: a YoMo Server responsible for recieve presence from Sender
 
-By YoMo, we create an event stream from Bob to Alice, sync all presence from Bob to Alice. Assume Bob and Alice are all in Europe, they connect to same mesh node: 
+By YoMo, we create an event stream from Bob to Alice, sync all presence from Bob to Alice. Assume Bob and Alice are both in Europe, they connect to the same mesh node: 
 
 <p align="center">
 <img src="https://github.com/yomorun/yomo-vhq-backend/raw/main/vhq-1-single_mesh_arch.jpg" width="600">
