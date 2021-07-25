@@ -1,16 +1,34 @@
-# vhq-backend
+# YoMo Showcase: Implement an Virtual HQ Presence Service with Geo-Distributed Cloud 
 
-This example demonstrates how to build a Virtual HQ backend with [YoMo](https://github.com/yomorun/yomo) Edge-Mesh Architecture + [Socket.IO](https://socket.io/).
+This showcase demonstrates how to build a realtime [Presence](https://en.wikipedia.org/wiki/Presence_information) Sync Service of [Metaverse Workplace - Virtual Headquarters](https://techcrunch.com/2020/11/18/virtual-hqs-race-to-win-over-a-remote-work-fatigued-market/) with Geo-distributed Cloud Architecture by [YoMo](https://github.com/yomorun/yomo) and [Socket.IO](https://socket.io/).
 
-![Edge-Mesh](https://github.com/yomorun/yomo-socketio-adapter/blob/main/edge-mesh.jpg)
+Nowadays, users care about low-latency event transfermation, but backend services usually deployed to a dedicated cloud region, CDN is used for static resources, we need a CDN-like architecture but for upstream data and realtime computing. This showcase introduce a easy way to reach the goal.
 
-![YoMo](https://github.com/yomorun/yomo-socketio-adapter/blob/main/adapter.png)
+## 🧑🏼‍🏫 Architecture Explanation
 
-### Prerequisites
+There are 3 parts in this Realtime Presence Sync Service: 
+
+1. **Websocket Server**: accepts WebSocket connections from Web Browsers
+2. **Presence Sender Service**: a YoMo Server responsible for send presence to other nodes 
+3. **Presence Receiver Service**: a YoMo Server responsible for recieve presence from Sender
+
+By YoMo, we create an event stream from Bob to Alice, sync all presence from Bob to Alice. Assume Bob and Alice are all in Europe, they connect to same mesh node: 
+
+<p align="center">
+<img src="https://github.com/yomorun/yomo-vhq-backend/raw/main/vhq-1-single_mesh_arch.jpg" width="600">
+</p>
+
+But When Bob is in Italy 🇮🇹 while Alice is in US 🇺🇸, the presence flow will be like below, it's done automatically by YoMo:
+
+![YoMo for Geo-Distributed Mesh Networks](vhq-2-geo_mesh_arch.jpg)
+
+## 🔨 Dev on local
+
+### 0. Prerequisites
 
 [Install Go](https://golang.org/doc/install)
 
-### 1. Install CLI
+### 1. Install YoMo CLI
 
 ```bash
 $ go install github.com/yomorun/cli/yomo@latest
