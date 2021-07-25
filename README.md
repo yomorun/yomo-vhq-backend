@@ -9,8 +9,8 @@ Nowadays, users care about low-latency event transfermation, but backend service
 There are 3 parts in this Realtime Presence Sync Service: 
 
 1. **Websocket Server**: accepts WebSocket connections from Web Browsers
-2. **Presence Sender Service**: a YoMo Server responsible for send presence to other nodes 
-3. **Presence Receiver Service**: a YoMo Server responsible for recieve presence from Sender
+2. **Presence Sender Service**: a YoMo Server responsible for dispatch presence to other nodes 
+3. **Presence Receiver Service**: a YoMo Server responsible for recieving presence from Senders
 
 By YoMo, we create an event stream from Bob to Alice, sync all presence from Bob to Alice. Assume Bob and Alice are all in Europe, they connect to same mesh node: 
 
@@ -21,6 +21,18 @@ By YoMo, we create an event stream from Bob to Alice, sync all presence from Bob
 But When Bob is in Italy 🇮🇹 while Alice is in US 🇺🇸, the presence flow will be like below, it's done automatically by YoMo:
 
 ![YoMo for Geo-Distributed Mesh Networks](vhq-2-geo_mesh_arch.jpg)
+
+In this showcase, we separate presence sync flow to 2 parts, one is `Sender`, responsible for `Dispatching presence`, another is for `Receiving presence`. Every `Sender` will dispatching presence to every `Receivers`:
+
+<p align="center">
+<img src="https://github.com/yomorun/yomo-vhq-backend/raw/main/vhq-3-send-msg.jpg" width="600">
+</p>
+
+YoMo care about security, presence in `Sender` and `Receiver` are encrypt by TLS v1.3 by default on [every datagram](https://datatracker.ietf.org/doc/html/draft-ietf-quic-tls-34):
+
+<p align="center">
+<img src="https://github.com/yomorun/yomo-vhq-backend/raw/main/vhq-4-send-msg-with-tls1.3.jpg" width="600">
+</p>
 
 ## 🔨 Dev on local
 
