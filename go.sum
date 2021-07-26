@@ -193,8 +193,9 @@ github.com/ugorji/go/codec v1.1.7 h1:2SvQaVZ1ouYrrKKwoSk2pzd4A9evlKJb9oTL+OaLUSs
 github.com/ugorji/go/codec v1.1.7/go.mod h1:Ax+UKWsSmolVDwsd+7N3ZtXu+yMGCf907BLYF3GoBXY=
 github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49uaYMPRU=
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
-github.com/yomorun/y3-codec-golang v1.7.0 h1:UYL6zuj132dnqG4N1MHuSY4h3DmC/6DfkMjNtTlugKI=
 github.com/yomorun/y3-codec-golang v1.7.0/go.mod h1:R+y8hQ/AHZ1tDzWtmspVeX7omqVWFJ42gdlXIOp35rA=
+github.com/yomorun/y3-codec-golang v1.7.1 h1:cne+lwCRxG+xZub9SKIfWSH1U/XUwpeb1Kf9tGKwaBc=
+github.com/yomorun/y3-codec-golang v1.7.1/go.mod h1:R+y8hQ/AHZ1tDzWtmspVeX7omqVWFJ42gdlXIOp35rA=
 github.com/yomorun/yomo v1.3.7-0.20210713033810-bcbbaf185a01 h1:uGQWfekJJ09lez8Iq64Mm31jgjndRjgKnsChQSnqRL8=
 github.com/yomorun/yomo v1.3.7-0.20210713033810-bcbbaf185a01/go.mod h1:ph6pnZTKoY1lbq4gBKIljkuRxAR+KXgIqNcCnEGaBSs=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
