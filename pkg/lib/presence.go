@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"os"
 	"time"
 
 	"github.com/yomorun/y3-codec-golang"
@@ -20,6 +21,7 @@ type Presence struct {
 type PresenceOnlineState struct {
 	Name   string `y3:"0x21"`
 	Avatar string `y3:"0x22"`
+	MeshID string `y3:"0x23"`
 }
 
 // PresenceMovement is sent to all users when a user moves
@@ -79,6 +81,7 @@ func EncodeOnline(name string, avatar string) (Presence, error) {
 	buf, err := codec.Marshal(PresenceOnlineState{
 		Name:   name,
 		Avatar: avatar,
+		MeshID: os.Getenv("MESH_ID"),
 	})
 
 	return Presence{

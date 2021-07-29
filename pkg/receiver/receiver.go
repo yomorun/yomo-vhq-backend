@@ -2,7 +2,6 @@ package receiver
 
 import (
 	"context"
-	"os"
 
 	color "github.com/fatih/color"
 	socketio "github.com/googollee/go-socket.io"
@@ -91,10 +90,9 @@ func processEventOnline(presence lib.Presence) {
 	if err != nil {
 		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
 	} else {
-		data := &map[string]interface{}{"name": online.Name, "timestamp": presence.Timestamp, "avatar": online.Avatar}
+		data := &map[string]interface{}{"name": online.Name, "timestamp": presence.Timestamp, "avatar": online.Avatar, "mesh_id": online.MeshID}
 		ws.BroadcastToRoom("/", lib.RoomID, "online", data)
 		ws.BroadcastToRoom("/", lib.RoomID, "ask")
-		ws.BroadcastToRoom("/", lib.RoomID, "mesh_id", os.Getenv("MESH_ID"))
 	}
 }
 
