@@ -69,7 +69,7 @@ func main() {
 	router.POST("/socket.io/*any", gin.WrapH(server))
 	router.GET("/whoami", func(c *gin.Context) {
 		c.JSON(200, gin.H{
-			"message": os.Getenv("MESH_ID"),
+			"mesh_id": os.Getenv("MESH_ID"),
 		})
 	})
 	router.Run(socketioAddr)

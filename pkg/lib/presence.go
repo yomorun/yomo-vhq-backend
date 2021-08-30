@@ -7,7 +7,7 @@ import (
 	"github.com/yomorun/y3-codec-golang"
 )
 
-const RoomID = "yomo-vhq"
+// const RoomID = "yomo-vhq"
 
 // PresenceBase is the base structure for presence
 type Presence struct {
@@ -43,7 +43,7 @@ type Vector struct {
 	Y float64 `y3:"0x32"`
 }
 
-func EncodeMovement(name string, x float64, y float64) (Presence, error) {
+func EncodeMovement(name string, x float64, y float64, roomID string) (Presence, error) {
 	codec := y3.NewCodec(0x30)
 	buf, err := codec.Marshal(PresenceMovement{
 		Name:      name,
@@ -51,14 +51,14 @@ func EncodeMovement(name string, x float64, y float64) (Presence, error) {
 	})
 
 	return Presence{
-		Room:      RoomID,
+		Room:      roomID,
 		Event:     "movement",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
 	}, err
 }
 
-func EncodeSync(name string, x float64, y float64, avatar string) (Presence, error) {
+func EncodeSync(name string, x float64, y float64, avatar string, roomID string) (Presence, error) {
 	codec := y3.NewCodec(0x30)
 
 	buf, err := codec.Marshal(PresenceSync{
@@ -68,14 +68,14 @@ func EncodeSync(name string, x float64, y float64, avatar string) (Presence, err
 	})
 
 	return Presence{
-		Room:      RoomID,
+		Room:      roomID,
 		Event:     "sync",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
 	}, err
 }
 
-func EncodeOnline(name string, avatar string) (Presence, error) {
+func EncodeOnline(name string, avatar string, roomID string) (Presence, error) {
 	codec := y3.NewCodec(0x30)
 
 	buf, err := codec.Marshal(PresenceOnlineState{
@@ -85,7 +85,7 @@ func EncodeOnline(name string, avatar string) (Presence, error) {
 	})
 
 	return Presence{
-		Room:      RoomID,
+		Room:      roomID,
 		Event:     "online",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
