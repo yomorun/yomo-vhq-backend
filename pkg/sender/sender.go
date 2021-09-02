@@ -49,7 +49,8 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	// when user disconnect, leave them from socket.io room
 	// and notify to others in this room
 	server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
-		s.logger.Printf("EVT | OnDisconnect | ID=%s, Context=%v\n", conn.ID(), conn.Context())
+		s.logger.Printf("EVT | OnDisconnect | ID=%s, Room=%s, Context=%v\n", conn.ID(), s.roomID, conn.Context())
+		conn.LeaveAll()
 		if conn.Context() == nil {
 			return
 		}
@@ -75,19 +76,18 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		// get the userID from websocket
 		var signal = payload.(map[string]interface{})
 		userID := signal["name"].(string)
+		s.logger.Printf("[%s][%s] | EVT | online | %v\n", userID, s.roomID, signal)
 		// get roomID from websocket
-		roomID := signal["roomID"].(string)
-		if roomID == "" {
-			conn.Emit("bye", "invalid roomID")
-			conn.Close()
-			return
+		s.roomID = "void"
+		if _, ok := signal["room"]; ok {
+			s.roomID = signal["room"].(string)
 		}
-
-		s.roomID = roomID
 		s.logger.Printf("[%s][%s] | EVT | online | %v\n", userID, s.roomID, signal)
 
 		// store userID to websocket connection context
 		conn.SetContext(userID)
+		// join room
+		conn.Join(s.roomID)
 
 		p, err := lib.EncodeOnline(userID, signal["avatar"].(string), s.roomID)
 

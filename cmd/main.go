@@ -67,6 +67,9 @@ func main() {
 	router.Use(ginMiddleware())
 	router.GET("/socket.io/*any", gin.WrapH(server))
 	router.POST("/socket.io/*any", gin.WrapH(server))
+	router.GET("/config", func(c *gin.Context) {
+		c.String(200, "[{\"name\":\"Receiver-Local\",\"host\":\"localhost\",\"port\":9000}]")
+	})
 	router.GET("/whoami", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"mesh_id": os.Getenv("MESH_ID"),
