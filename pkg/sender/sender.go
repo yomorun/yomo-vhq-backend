@@ -18,6 +18,7 @@ import (
 type Sender struct {
 	Stream io.Writer
 	logger *color.Color
+	roomID string
 }
 
 var codec = y3.NewCodec(0x10)
@@ -41,14 +42,15 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 	// when new user connnected, add them to socket.io room
 	server.OnConnect("/", func(conn socketio.Conn) error {
 		s.logger.Printf("EVT | OnConnect | conn.ID=[%s]\n", conn.ID())
-		conn.Join(lib.RoomID)
+		// conn.Join(lib.RoomID)
 		return nil
 	})
 
 	// when user disconnect, leave them from socket.io room
 	// and notify to others in this room
 	server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
-		s.logger.Printf("EVT | OnDisconnect | ID=%s, Context=%v\n", conn.ID(), conn.Context())
+		s.logger.Printf("EVT | OnDisconnect | ID=%s, Room=%s, Context=%v\n", conn.ID(), s.roomID, conn.Context())
+		conn.LeaveAll()
 		if conn.Context() == nil {
 			return
 		}
@@ -58,14 +60,14 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 
 		// broadcast to all receivers I am offline
 		s.dispatchToYoMoReceivers(lib.Presence{
-			Room:      lib.RoomID,
+			Room:      s.roomID,
 			Event:     "offline",
 			Timestamp: time.Now().Unix(),
 			Payload:   []byte(userID),
 		})
 
 		// leave from socket.io room
-		server.LeaveRoom("/", lib.RoomID, conn)
+		server.LeaveRoom("/", s.roomID, conn)
 	})
 
 	// browser will emit "online" event when user connected to WebSocket, with payload:
@@ -74,11 +76,20 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		// get the userID from websocket
 		var signal = payload.(map[string]interface{})
 		userID := signal["name"].(string)
-		s.logger.Printf("[%s] | EVT | online | %v\n", userID, signal)
+		s.logger.Printf("[%s][%s] | EVT | online | %v\n", userID, s.roomID, signal)
+		// get roomID from websocket
+		s.roomID = "void"
+		if _, ok := signal["room"]; ok {
+			s.roomID = signal["room"].(string)
+		}
+		s.logger.Printf("[%s][%s] | EVT | online | %v\n", userID, s.roomID, signal)
+
 		// store userID to websocket connection context
 		conn.SetContext(userID)
+		// join room
+		conn.Join(s.roomID)
 
-		p, err := lib.EncodeOnline(userID, signal["avatar"].(string))
+		p, err := lib.EncodeOnline(userID, signal["avatar"].(string), s.roomID)
 
 		if err != nil {
 			logger.Printf("ERR | lib.EncodeOnline err: %v\n", err)
@@ -97,7 +108,7 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		dir := signal["dir"].(map[string]interface{})
 
 		// broadcast to all receivers
-		p, err := lib.EncodeMovement(userID, dir["x"].(float64), dir["y"].(float64))
+		p, err := lib.EncodeMovement(userID, dir["x"].(float64), dir["y"].(float64), s.roomID)
 
 		if err != nil {
 			logger.Printf("ERR | lib.EncodeMovement err: %v\n", err)
@@ -118,13 +129,17 @@ func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
 		s.logger.Printf("--------------avatar------", signal["avatar"].(string))
 
 		// broadcast to all receivers
-		p, err := lib.EncodeSync(userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string))
+		p, err := lib.EncodeSync(userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), s.roomID)
 
 		if err != nil {
 			logger.Printf("ERR | lib.EncodeSync err: %v\n", err)
 		} else {
 			s.dispatchToYoMoReceivers(p)
 		}
+	})
+
+	server.OnEvent("/", "room", func(conn socketio.Conn, payload interface{}) {
+
 	})
 }
 

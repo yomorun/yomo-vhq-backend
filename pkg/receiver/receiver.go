@@ -91,8 +91,8 @@ func processEventOnline(presence lib.Presence) {
 		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
 	} else {
 		data := &map[string]interface{}{"name": online.Name, "timestamp": presence.Timestamp, "avatar": online.Avatar, "mesh_id": online.MeshID}
-		ws.BroadcastToRoom("/", lib.RoomID, "online", data)
-		ws.BroadcastToRoom("/", lib.RoomID, "ask")
+		ws.BroadcastToRoom("/", presence.Room, "online", data)
+		ws.BroadcastToRoom("/", presence.Room, "ask")
 	}
 }
 
@@ -101,7 +101,7 @@ func processEventOffline(presence lib.Presence) {
 	log.Printf("process event Offline, presence: %v\n", presence)
 	name := string(presence.Payload)
 	data := &map[string]interface{}{"name": name}
-	ws.BroadcastToRoom("/", lib.RoomID, "offline", data)
+	ws.BroadcastToRoom("/", presence.Room, "offline", data)
 }
 
 // handle "movement" event
@@ -122,7 +122,7 @@ func processMovement(presence lib.Presence) {
 				"y": movement.Direction.Y,
 			},
 		}
-		ws.BroadcastToRoom("/", lib.RoomID, "movement", data)
+		ws.BroadcastToRoom("/", presence.Room, "movement", data)
 	}
 }
 
@@ -145,6 +145,6 @@ func processSync(presence lib.Presence) {
 			},
 			"avatar": sync.Avatar,
 		}
-		ws.BroadcastToRoom("/", lib.RoomID, "sync", data)
+		ws.BroadcastToRoom("/", presence.Room, "sync", data)
 	}
 }
