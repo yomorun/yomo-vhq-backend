@@ -1,93 +1,82 @@
 package lib
 
 import (
+	"encoding/json"
 	"os"
 	"time"
-
-	"github.com/yomorun/y3-codec-golang"
 )
-
-// const RoomID = "yomo-vhq"
 
 // PresenceBase is the base structure for presence
 type Presence struct {
-	Room      string `y3:"0x11"`
-	Event     string `y3:"0x12"`
-	Timestamp int64  `y3:"0x13"`
-	Payload   []byte `y3:"0x14"`
+	Room      string `json:"room"`
+	Event     string `json:"event"`
+	Timestamp int64  `json:"timestamp"`
+	Payload   []byte `json:"payload"`
 }
 
 // PresenceOnline event will be sent to all users when a user goes online
 type PresenceOnlineState struct {
-	Name   string `y3:"0x21"`
-	Avatar string `y3:"0x22"`
-	MeshID string `y3:"0x23"`
+	Name   string `json:"name"`
+	Avatar string `json:"avatar"`
+	MeshID string `json:"meshID"`
 }
 
 // PresenceMovement is sent to all users when a user moves
 type PresenceMovement struct {
-	Name      string `y3:"0x21"`
-	Direction Vector `y3:"0x22"`
+	Name      string `json:"name"`
+	Direction Vector `json:"direction"`
 }
 
 // PresenceMovement is sent to all users when a user moves
 type PresenceSync struct {
-	Name     string `y3:"0x21"`
-	Position Vector `y3:"0x22"`
-	Avatar   string `y3:"0x23"`
+	Name     string `json:"name"`
+	Position Vector `json:"position"`
+	Avatar   string `json:"avatar"`
 }
 
 // Position represents by (x,y) corrdinate of user
 type Vector struct {
-	X float64 `y3:"0x31"`
-	Y float64 `y3:"0x32"`
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
 }
 
-func EncodeMovement(name string, x float64, y float64, roomID string) (Presence, error) {
-	codec := y3.NewCodec(0x30)
-	buf, err := codec.Marshal(PresenceMovement{
+func EncodeMovement(name string, x float64, y float64, roomID string) Presence {
+	buf, _ := json.Marshal(PresenceMovement{
 		Name:      name,
 		Direction: Vector{X: x, Y: y},
 	})
-
 	return Presence{
 		Room:      roomID,
 		Event:     "movement",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
-	}, err
+	}
 }
 
-func EncodeSync(name string, x float64, y float64, avatar string, roomID string) (Presence, error) {
-	codec := y3.NewCodec(0x30)
-
-	buf, err := codec.Marshal(PresenceSync{
+func EncodeSync(name string, x float64, y float64, avatar string, roomID string) Presence {
+	buf, _ := json.Marshal(PresenceSync{
 		Name:     name,
 		Position: Vector{X: x, Y: y},
 		Avatar:   avatar,
 	})
-
 	return Presence{
 		Room:      roomID,
 		Event:     "sync",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
-	}, err
+	}
 }
 
-func EncodeOnline(name string, avatar string, roomID string) (Presence, error) {
-	codec := y3.NewCodec(0x30)
-
-	buf, err := codec.Marshal(PresenceOnlineState{
+func EncodeOnline(name string, avatar string, roomID string) Presence {
+	buf, _ := json.Marshal(PresenceOnlineState{
 		Name:   name,
 		Avatar: avatar,
 		MeshID: os.Getenv("MESH_ID"),
 	})
-
 	return Presence{
 		Room:      roomID,
 		Event:     "online",
 		Timestamp: time.Now().Unix(),
 		Payload:   buf,
-	}, err
+	}
 }

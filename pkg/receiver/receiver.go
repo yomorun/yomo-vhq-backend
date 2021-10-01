@@ -1,13 +1,11 @@
 package receiver
 
 import (
-	"context"
+	"encoding/json"
 
 	color "github.com/fatih/color"
 	socketio "github.com/googollee/go-socket.io"
-	"github.com/yomorun/y3-codec-golang"
-	"github.com/yomorun/yomo/pkg/client"
-	"github.com/yomorun/yomo/pkg/rx"
+	"github.com/yomorun/yomo"
 
 	"yomo.run/vhq/pkg/lib"
 )
@@ -19,43 +17,34 @@ var ws *socketio.Server
 
 // setupReceiver connects to `yomo-zipper` as a `yomo-sink`.
 // receiver will receive the entity from yomo-zipper after stream processing and broadcast it to socket.io clients.
-func NewReceiver(host string, port int, websocket *socketio.Server) error {
-	log.Printf("------------Receiver init------------ host=%s, port=%d\n", host, port)
-	cli, err := client.NewServerless("PresenceHandler").Connect(host, port)
+func NewReceiver(zipperAddress string, websocket *socketio.Server) error {
+	log.Printf("------------Receiver init------------ zipper=%s", zipperAddress)
+	sfn := yomo.NewStreamFunction("PresenceHandler", yomo.WithZipperAddr(zipperAddress))
+
+	sfn.SetObserveDataID(0x10)
+
+	sfn.SetHandler(handler)
+
+	// start
+	err := sfn.Connect()
 	if err != nil {
-		log.Printf("❌ Connect to the zipper server on [%s:%d] failure with err: %v\n", host, port, err)
+		log.Printf("[flow] connect err=%v", err)
 		return err
 	}
 
-	go cli.Pipe(receiverHandler)
-
-	hookToSocketIO(websocket)
+	ws = websocket
 
 	return nil
 }
 
-func hookToSocketIO(websocket *socketio.Server) {
-	ws = websocket
-}
-
-// broadcast the events the geo-distributed users.
-var decode = func(v []byte) (interface{}, error) {
-	log.Printf("decode : %v\n", v)
-	// broadcast the entity to local users via socket.io directly.
+func handler(data []byte) (byte, []byte) {
 	var presence lib.Presence
-	err := y3.ToObject(v, &presence)
+	err := json.Unmarshal(data, &presence)
 	if err != nil {
-		log.Printf("❌ Decode the presence to struct failure with err: %v\n", err)
-		return nil, err
+		log.Printf("handler json.Unmarshal error: %v", err)
 	}
 
-	return presence, nil
-}
-
-var messageHandler = func(_ context.Context, v interface{}) (interface{}, error) {
-	log.Printf("messageHandler: %v\n", v)
-
-	presence := v.(lib.Presence)
+	log.Printf("handler: deocde data: %v", presence)
 
 	switch presence.Event {
 	case "online":
@@ -68,17 +57,7 @@ var messageHandler = func(_ context.Context, v interface{}) (interface{}, error)
 		processSync(presence)
 	}
 
-	return v, nil
-}
-
-// receiverHandler will handle entity in Rx way
-func receiverHandler(rxstream rx.RxStream) rx.RxStream {
-	stream := rxstream.
-		Subscribe(0x10).
-		OnObserve(decode).
-		Map(messageHandler)
-
-	return stream
+	return 0x0, nil
 }
 
 // handle "online" event
@@ -86,7 +65,7 @@ func processEventOnline(presence lib.Presence) {
 	log.Printf("process event Online, presence: %v\n", presence)
 	// decode presence.payload from []byte to PresenceOnlineState
 	var online lib.PresenceOnlineState
-	err := y3.ToObject(presence.Payload, &online)
+	err := json.Unmarshal(presence.Payload, &online)
 	if err != nil {
 		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
 	} else {
@@ -109,7 +88,7 @@ func processMovement(presence lib.Presence) {
 	log.Printf("process event Movement, presence: %v\n", presence)
 	// decode presence.payload from []byte to PresenceMovement
 	var movement lib.PresenceMovement
-	err := y3.ToObject(presence.Payload, &movement)
+	err := json.Unmarshal(presence.Payload, &movement)
 
 	if err != nil {
 		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
@@ -131,7 +110,7 @@ func processSync(presence lib.Presence) {
 	log.Printf("process event Sync, presence: %v\n", presence)
 	// decode presence.payload from []byte to PresenceSync
 	var sync lib.PresenceSync
-	err := y3.ToObject(presence.Payload, &sync)
+	err := json.Unmarshal(presence.Payload, &sync)
 
 	if err != nil {
 		log.Printf("(processSync) Decode the presence.payload to PresenceSync failure with err: %v\n", err)

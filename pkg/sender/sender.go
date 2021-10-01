@@ -1,160 +1,127 @@
 package sender
 
 import (
-	"io"
-
+	"encoding/json"
 	"time"
 
 	color "github.com/fatih/color"
 	socketio "github.com/googollee/go-socket.io"
+	"github.com/yomorun/yomo"
 
-	"github.com/yomorun/y3-codec-golang"
-	"github.com/yomorun/yomo/pkg/client"
-	"github.com/yomorun/yomo/pkg/logger"
 	"yomo.run/vhq/pkg/lib"
 )
 
-// sender sends the VHQ events to yomo-zipper for stream processing.
-type Sender struct {
-	Stream io.Writer
-	logger *color.Color
+type onlineState struct {
+	userID string
 	roomID string
 }
 
-var codec = y3.NewCodec(0x10)
+var sender yomo.Source
+var logger = color.New(color.FgYellow)
 
 // NewSender send presence as stream to yomo-send-server
-func NewSender(host string, port int) *Sender {
-	logger := color.New(color.FgYellow)
-	cli, err := client.NewSource("websocket").Connect(host, port)
+func NewSender(zipperAddress string, server *socketio.Server) {
+	sender = yomo.NewSource("yomo-source", yomo.WithZipperAddr(zipperAddress))
+
+	err := sender.Connect()
 	if err != nil {
-		logger.Printf("❌ Connect to the zipper server on [%s:%d] failure with err: %v", host, port, err)
-		return nil
+		logger.Printf("[source] ❌ Connect to YoMo-Zipper failure with err: %v\n", err)
+	} else {
+		logger.Printf("[source] ✅ Connect to YoMo-Zipper\n")
 	}
 
-	return &Sender{
-		Stream: cli,
-		logger: logger,
-	}
+	sender.SetDataTag(0x10)
+
+	bindConnection(server)
 }
 
-func (s *Sender) BindConnectionAsStreamDataSource(server *socketio.Server) {
+func bindConnection(server *socketio.Server) {
 	// when new user connnected, add them to socket.io room
 	server.OnConnect("/", func(conn socketio.Conn) error {
-		s.logger.Printf("EVT | OnConnect | conn.ID=[%s]\n", conn.ID())
-		// conn.Join(lib.RoomID)
+		logger.Printf("EVT | OnConnect | conn.ID=[%s]\n", conn.ID())
 		return nil
 	})
 
 	// when user disconnect, leave them from socket.io room
 	// and notify to others in this room
 	server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
-		s.logger.Printf("EVT | OnDisconnect | ID=%s, Room=%s, Context=%v\n", conn.ID(), s.roomID, conn.Context())
+		state := conn.Context().(*onlineState)
+		logger.Printf("[%s-%s] | EVT | OnDisconnect | \n", state.userID, state.roomID)
+
 		conn.LeaveAll()
 		if conn.Context() == nil {
 			return
 		}
 
-		userID := conn.Context().(string)
-		s.logger.Printf("[%s] | EVT | OnDisconnect | reason=%s\n", userID, reason)
-
 		// broadcast to all receivers I am offline
-		s.dispatchToYoMoReceivers(lib.Presence{
-			Room:      s.roomID,
+		dispatchToReceivers(lib.Presence{
+			Room:      state.roomID,
 			Event:     "offline",
 			Timestamp: time.Now().Unix(),
-			Payload:   []byte(userID),
+			Payload:   []byte(state.userID),
 		})
 
 		// leave from socket.io room
-		server.LeaveRoom("/", s.roomID, conn)
+		server.LeaveRoom("/", state.roomID, conn)
 	})
 
 	// browser will emit "online" event when user connected to WebSocket, with payload:
-	// {name: "USER_ID"}
+	// {name: "USER_ID", avatar: "URL", room: "ROOM_ID"}
 	server.OnEvent("/", "online", func(conn socketio.Conn, payload interface{}) {
-		// get the userID from websocket
+		// get the userID, roomID from websocket
 		var signal = payload.(map[string]interface{})
 		userID := signal["name"].(string)
-		s.logger.Printf("[%s][%s] | EVT | online | %v\n", userID, s.roomID, signal)
-		// get roomID from websocket
-		s.roomID = "void"
+		roomID := "void"
 		if _, ok := signal["room"]; ok {
-			s.roomID = signal["room"].(string)
+			roomID = signal["room"].(string)
 		}
-		s.logger.Printf("[%s][%s] | EVT | online | %v\n", userID, s.roomID, signal)
+		logger.Printf("[%s][%s] | EVT | online | %v\n", userID, roomID, signal)
+
+		// join room
+		conn.Join(roomID)
 
 		// store userID to websocket connection context
-		conn.SetContext(userID)
-		// join room
-		conn.Join(s.roomID)
+		conn.SetContext(&onlineState{userID: userID, roomID: roomID})
 
-		p, err := lib.EncodeOnline(userID, signal["avatar"].(string), s.roomID)
-
-		if err != nil {
-			logger.Printf("ERR | lib.EncodeOnline err: %v\n", err)
-		} else {
-			s.dispatchToYoMoReceivers(p)
-		}
+		dispatchToReceivers(lib.EncodeOnline(userID, signal["avatar"].(string), roomID))
 	})
 
 	// browser will emit "movement" event when user moving around, with payload:
 	// {name: "USER_ID", dir: {x:1, y:0}}
 	server.OnEvent("/", "movement", func(conn socketio.Conn, payload interface{}) {
-		userID := conn.Context().(string)
-		s.logger.Printf("[%s] | EVT | movement | %v - (%T)\n", userID, payload, payload)
+		state := conn.Context().(*onlineState)
+		logger.Printf("[%s-%s] | EVT | movement | %v - (%T)\n", state.userID, state.roomID, payload, payload)
 
 		signal := payload.(map[string]interface{})
 		dir := signal["dir"].(map[string]interface{})
 
 		// broadcast to all receivers
-		p, err := lib.EncodeMovement(userID, dir["x"].(float64), dir["y"].(float64), s.roomID)
-
-		if err != nil {
-			logger.Printf("ERR | lib.EncodeMovement err: %v\n", err)
-		} else {
-			s.dispatchToYoMoReceivers(p)
-		}
+		dispatchToReceivers(lib.EncodeMovement(state.userID, dir["x"].(float64), dir["y"].(float64), state.roomID))
 	})
 
 	// browser will emit "sync" event to tell others my position, the payload looks like
 	// {name: "USER_ID", pos: {x: 0, y: 0}}
 	server.OnEvent("/", "sync", func(conn socketio.Conn, payload interface{}) {
-		userID := conn.Context().(string)
-		s.logger.Printf("[%s] | EVT | sync | %v - (%T)\n", userID, payload, payload)
+		state := conn.Context().(*onlineState)
+		logger.Printf("[%s-%s] | EVT | sync | %v - (%T)\n", state.userID, state.roomID, payload, payload)
 
 		signal := payload.(map[string]interface{})
 		pos := signal["pos"].(map[string]interface{})
 
-		s.logger.Printf("--------------avatar------", signal["avatar"].(string))
-
 		// broadcast to all receivers
-		p, err := lib.EncodeSync(userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), s.roomID)
-
-		if err != nil {
-			logger.Printf("ERR | lib.EncodeSync err: %v\n", err)
-		} else {
-			s.dispatchToYoMoReceivers(p)
-		}
-	})
-
-	server.OnEvent("/", "room", func(conn socketio.Conn, payload interface{}) {
-
+		dispatchToReceivers(lib.EncodeSync(state.userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), state.roomID))
 	})
 }
 
 // dispatch data to all downstream Presence-Receiver Servers
-func (s *Sender) dispatchToYoMoReceivers(payload interface{}) (int, error) {
-	s.logger.Printf("dispatchToYoMoReceivers: %v\n", payload)
-	buf, err := codec.Marshal(payload)
+func dispatchToReceivers(payload lib.Presence) {
+	sendingBuf, err := json.Marshal(&payload)
 	if err != nil {
-		s.logger.Printf("codec.Marshal err: %v\n", err)
-		return 0, err
+		logger.Printf("dispatchToReceivers json.Marshal error: %v", err)
 	}
-	sent, err := s.Stream.Write(buf)
+
+	_, err = sender.Write(sendingBuf)
 	if err != nil {
-		s.logger.Printf("Stream.Write err: %v\n", err)
-		return 0, err
+		logger.Printf("dispatchToReceivers sender.Write error: %v", err)
 	}
-	return sent, nil
 }

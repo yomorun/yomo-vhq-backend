@@ -19,17 +19,18 @@ const (
 	socketioAddr = "0.0.0.0:19001"
 )
 
-// YoMo server for send messages
+// YoMo zipper for sending messages
 var senderYoMoServer string
 
-// YoMo server for receive messages
+// YoMo zipper for receiving messages
 var receiverYoMoServer string
 
-// var sender *sender.Sender
-var serverRegion = os.Getenv("MESH_ID")
+// meshID is the access point for users. This services can be deployed at anywhere
+// to decrease connection_time. Users can connect to the nearest access point.
+var meshID = os.Getenv("MESH_ID")
 
 func main() {
-	log.Printf("MESH_ID: %s", serverRegion)
+	log.Printf("MESH_ID: %s", meshID)
 
 	// the YoMo server responsible for send messages
 	senderYoMoServer = os.Getenv("SENDER")
@@ -52,13 +53,10 @@ func main() {
 	defer server.Close()
 
 	// sender will send the data to `yomo-zipper` for stream processing.
-	hostOfSender, portOfSender := getHostAndPort(senderYoMoServer)
-	sender := sender.NewSender(hostOfSender, portOfSender)
-	go sender.BindConnectionAsStreamDataSource(server)
+	go sender.NewSender(senderYoMoServer, server)
 
 	// receiver will receive the data from `yomo-zipper` after stream processing.
-	hostOfReceiver, portOfReceiver := getHostAndPort(receiverYoMoServer)
-	go receiver.NewReceiver(hostOfReceiver, portOfReceiver, server)
+	go receiver.NewReceiver(receiverYoMoServer, server)
 
 	// serve socket.io server.
 	go server.Serve()

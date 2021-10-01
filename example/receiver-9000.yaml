@@ -1,5 +1,5 @@
-name: YoMoReceiver-A
+name: YoMoReceiver
 host: 0.0.0.0
 port: 9000
-sinks:
+functions:
   - name: PresenceHandler
