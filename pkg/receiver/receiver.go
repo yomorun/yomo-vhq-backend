@@ -18,7 +18,7 @@ var ws *socketio.Server
 // setupReceiver connects to `yomo-zipper` as a `yomo-sink`.
 // receiver will receive the entity from yomo-zipper after stream processing and broadcast it to socket.io clients.
 func NewReceiver(zipperAddress string, websocket *socketio.Server) error {
-	log.Printf("------------Receiver init------------ zipper=%s", zipperAddress)
+	log.Printf("------------Receiver init------------ zipper=%s\n", zipperAddress)
 	sfn := yomo.NewStreamFunction("PresenceHandler", yomo.WithZipperAddr(zipperAddress))
 
 	sfn.SetObserveDataID(0x10)
@@ -28,7 +28,7 @@ func NewReceiver(zipperAddress string, websocket *socketio.Server) error {
 	// start
 	err := sfn.Connect()
 	if err != nil {
-		log.Printf("[flow] connect err=%v", err)
+		log.Printf("[flow] connect err=%v\n", err)
 		return err
 	}
 
@@ -41,10 +41,10 @@ func handler(data []byte) (byte, []byte) {
 	var presence lib.Presence
 	err := json.Unmarshal(data, &presence)
 	if err != nil {
-		log.Printf("handler json.Unmarshal error: %v", err)
+		log.Printf("handler json.Unmarshal error: %v\n", err)
 	}
 
-	log.Printf("handler: deocde data: %v", presence)
+	log.Printf("handler: deocde data: %v\n", presence)
 
 	switch presence.Event {
 	case "online":

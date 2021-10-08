@@ -45,6 +45,10 @@ func bindConnection(server *socketio.Server) {
 	// when user disconnect, leave them from socket.io room
 	// and notify to others in this room
 	server.OnDisconnect("/", func(conn socketio.Conn, reason string) {
+		if conn.Context() == nil {
+			logger.Println("[onDisconnect] empty conn context")
+			return
+		}
 		state := conn.Context().(*onlineState)
 		logger.Printf("[%s-%s] | EVT | OnDisconnect | \n", state.userID, state.roomID)
 
