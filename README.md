@@ -50,7 +50,7 @@ See [YoMo CLI](https://github.com/yomorun/cli#installing) for details.
 
 ### 2. Start Next.js server
 
-* **Next.js** version: [yomo-vhq-nextjs](https://github.com/yomorun/yomo-vhq-nextjs)
+* **Next.js** version: [yomo-metaverse-workplace-nextjs](https://github.com/yomorun/yomo-metaverse-workplace-nextjs)
 
 ```bash
 $ npm run dev
