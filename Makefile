@@ -18,4 +18,4 @@ build-arm:
 	GOARCH=arm64 GOOS=linux $(GO) build -o bin/vhqd-aarch64-linux -ldflags "-s -w ${GO_LDFLAGS}" ./cmd/main.go
 
 build-linux:
-	GOOS=linux $(GO) build -o bin/vhqd-x86_64-linux -ldflags "-s -w ${GO_LDFLAGS}" ./cmd/main.go
+	GOARCH=amd64 GOOS=linux go build -o bin/vhqd -gcflags=-l ./cmd/main.go
