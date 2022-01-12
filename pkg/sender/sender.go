@@ -79,7 +79,8 @@ func bindConnection(server *socketio.Server) {
 		if _, ok := signal["room"]; ok {
 			roomID = signal["room"].(string)
 		}
-		logger.Printf("[%s][%s] | EVT | online | %v\n", userID, roomID, signal)
+		country := signal["country"].(string)
+		logger.Printf("[%s][%s][%s] | EVT | online | %v\n", userID, roomID, country, signal)
 
 		// join room
 		conn.Join(roomID)
@@ -87,7 +88,7 @@ func bindConnection(server *socketio.Server) {
 		// store userID to websocket connection context
 		conn.SetContext(&onlineState{userID: userID, roomID: roomID})
 
-		dispatchToReceivers(lib.EncodeOnline(userID, signal["avatar"].(string), roomID))
+		dispatchToReceivers(lib.EncodeOnline(userID, signal["avatar"].(string), roomID, country))
 	})
 
 	// browser will emit "movement" event when user moving around, with payload:
@@ -107,13 +108,17 @@ func bindConnection(server *socketio.Server) {
 	// {name: "USER_ID", pos: {x: 0, y: 0}}
 	server.OnEvent("/", "sync", func(conn socketio.Conn, payload interface{}) {
 		state := conn.Context().(*onlineState)
-		logger.Printf("[%s-%s] | EVT | sync | %v - (%T)\n", state.userID, state.roomID, payload, payload)
-
 		signal := payload.(map[string]interface{})
+		country, ok := signal["country"]
+		if !ok {
+			logger.Printf("[%s-%s | EVT | sync | need to set country\n", state.userID, state.roomID)
+			return
+		}
+		logger.Printf("[%s-%s-%s] | EVT | sync | %v - (%T)\n", state.userID, state.roomID, country.(string), payload, payload)
 		pos := signal["pos"].(map[string]interface{})
 
 		// broadcast to all receivers
-		dispatchToReceivers(lib.EncodeSync(state.userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), state.roomID))
+		dispatchToReceivers(lib.EncodeSync(state.userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), state.roomID, country.(string)))
 	})
 }
 

@@ -67,9 +67,9 @@ func processEventOnline(presence lib.Presence) {
 	var online lib.PresenceOnlineState
 	err := json.Unmarshal(presence.Payload, &online)
 	if err != nil {
-		log.Printf("(processMovement) Decode the presence.payload to PresenceMovement failure with err: %v\n", err)
+		log.Printf("(processOnline) Decode the presence.payload to PresenceOnline failure with err: %v\n", err)
 	} else {
-		data := &map[string]interface{}{"name": online.Name, "timestamp": presence.Timestamp, "avatar": online.Avatar, "mesh_id": online.MeshID}
+		data := &map[string]interface{}{"name": online.Name, "timestamp": presence.Timestamp, "avatar": online.Avatar, "mesh_id": online.MeshID, "country": online.Country}
 		ws.BroadcastToRoom("/", presence.Room, "online", data)
 		ws.BroadcastToRoom("/", presence.Room, "ask")
 	}
@@ -122,7 +122,8 @@ func processSync(presence lib.Presence) {
 				"x": sync.Position.X,
 				"y": sync.Position.Y,
 			},
-			"avatar": sync.Avatar,
+			"avatar":  sync.Avatar,
+			"country": sync.Country,
 		}
 		ws.BroadcastToRoom("/", presence.Room, "sync", data)
 	}
