@@ -16,9 +16,10 @@ type Presence struct {
 
 // PresenceOnline event will be sent to all users when a user goes online
 type PresenceOnlineState struct {
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
-	MeshID string `json:"meshID"`
+	Name    string `json:"name"`
+	Avatar  string `json:"avatar"`
+	MeshID  string `json:"meshID"`
+	Country string `json:"country"`
 }
 
 // PresenceMovement is sent to all users when a user moves
@@ -32,6 +33,7 @@ type PresenceSync struct {
 	Name     string `json:"name"`
 	Position Vector `json:"position"`
 	Avatar   string `json:"avatar"`
+	Country  string `json:"country"`
 }
 
 // Position represents by (x,y) corrdinate of user
@@ -53,11 +55,12 @@ func EncodeMovement(name string, x float64, y float64, roomID string) Presence {
 	}
 }
 
-func EncodeSync(name string, x float64, y float64, avatar string, roomID string) Presence {
+func EncodeSync(name string, x float64, y float64, avatar string, roomID string, country string) Presence {
 	buf, _ := json.Marshal(PresenceSync{
 		Name:     name,
 		Position: Vector{X: x, Y: y},
 		Avatar:   avatar,
+		Country:  country,
 	})
 	return Presence{
 		Room:      roomID,
@@ -67,11 +70,12 @@ func EncodeSync(name string, x float64, y float64, avatar string, roomID string)
 	}
 }
 
-func EncodeOnline(name string, avatar string, roomID string) Presence {
+func EncodeOnline(name string, avatar string, roomID string, country string) Presence {
 	buf, _ := json.Marshal(PresenceOnlineState{
-		Name:   name,
-		Avatar: avatar,
-		MeshID: os.Getenv("MESH_ID"),
+		Name:    name,
+		Avatar:  avatar,
+		MeshID:  os.Getenv("MESH_ID"),
+		Country: country,
 	})
 	return Presence{
 		Room:      roomID,
