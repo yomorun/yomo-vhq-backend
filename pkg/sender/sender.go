@@ -109,12 +109,16 @@ func bindConnection(server *socketio.Server) {
 	server.OnEvent("/", "sync", func(conn socketio.Conn, payload interface{}) {
 		state := conn.Context().(*onlineState)
 		signal := payload.(map[string]interface{})
-
-		logger.Printf("[%s-%s-%s] | EVT | sync | %v - (%T)\n", state.userID, state.roomID, signal["country"].(string), payload, payload)
+		country, ok := signal["country"]
+		if !ok {
+			logger.Printf("[%s-%s | EVT | sync | need to set country\n", state.userID, state.roomID)
+			return
+		}
+		logger.Printf("[%s-%s-%s] | EVT | sync | %v - (%T)\n", state.userID, state.roomID, country.(string), payload, payload)
 		pos := signal["pos"].(map[string]interface{})
 
 		// broadcast to all receivers
-		dispatchToReceivers(lib.EncodeSync(state.userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), state.roomID, signal["country"].(string)))
+		dispatchToReceivers(lib.EncodeSync(state.userID, pos["x"].(float64), pos["y"].(float64), signal["avatar"].(string), state.roomID, country.(string)))
 	})
 }
 
