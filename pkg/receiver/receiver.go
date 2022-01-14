@@ -55,6 +55,10 @@ func handler(data []byte) (byte, []byte) {
 		processMovement(presence)
 	case "sync":
 		processSync(presence)
+	case "ding":
+		processDing(presence)
+	case "latency":
+		processLatency(presence)
 	}
 
 	return 0x0, nil
@@ -100,6 +104,7 @@ func processMovement(presence lib.Presence) {
 				"x": movement.Direction.X,
 				"y": movement.Direction.Y,
 			},
+			"timestamp": movement.Timestamp,
 		}
 		ws.BroadcastToRoom("/", presence.Room, "movement", data)
 	}
@@ -115,16 +120,41 @@ func processSync(presence lib.Presence) {
 	if err != nil {
 		log.Printf("(processSync) Decode the presence.payload to PresenceSync failure with err: %v\n", err)
 	} else {
-		log.Printf("(processSync) Decode the presence.payload to PresenceSync: %v\n", sync)
+		log.Printf("(processSync) Decode the presence.payload to PresenceSync: %+v\n", sync)
 		data := &map[string]interface{}{
 			"name": sync.Name,
 			"pos": &map[string]interface{}{
 				"x": sync.Position.X,
 				"y": sync.Position.Y,
 			},
-			"avatar":  sync.Avatar,
-			"country": sync.Country,
+			"avatar":    sync.Avatar,
+			"country":   sync.Country,
+			"timestamp": sync.Timestamp,
 		}
 		ws.BroadcastToRoom("/", presence.Room, "sync", data)
+	}
+}
+
+// handle "ping" event
+func processDing(presence lib.Presence) {
+	log.Printf("process event Ping, presence: %v\n", presence)
+	data := map[string]interface{}{}
+	err := json.Unmarshal(presence.Payload, &data)
+	if err != nil {
+		log.Printf("(processPing) Decode the presence.payload to PresencePing failure with err: %v\n", err)
+	} else {
+		ws.BroadcastToRoom("/", presence.Room, "dang", &data)
+	}
+}
+
+// handle "latency" event
+func processLatency(presence lib.Presence) {
+	log.Printf("process event Latency, presence: %v\n", presence)
+	data := map[string]interface{}{}
+	err := json.Unmarshal(presence.Payload, &data)
+	if err != nil {
+		log.Printf("(processLatency) Decode the presence.payload to PresenceLatency failure with err: %v\n", err)
+	} else {
+		ws.BroadcastToRoom("/", presence.Room, "latency", &data)
 	}
 }
