@@ -20,8 +20,11 @@ var sender yomo.Source
 var logger = color.New(color.FgYellow)
 
 // NewSender send presence as stream to yomo-send-server
-func NewSender(zipperAddress string, server *socketio.Server) {
-	sender = yomo.NewSource("yomo-source", yomo.WithZipperAddr(zipperAddress))
+func NewSender(zipperAddress string, server *socketio.Server, appID string, appSecret string) {
+	sender = yomo.NewSource("yomo-source",
+		yomo.WithZipperAddr(zipperAddress),
+		yomo.WithAppKeyCredential(appID, appSecret),
+	)
 
 	err := sender.Connect()
 	if err != nil {

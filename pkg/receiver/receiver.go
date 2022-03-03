@@ -17,11 +17,13 @@ var ws *socketio.Server
 
 // setupReceiver connects to `yomo-zipper` as a `yomo-sink`.
 // receiver will receive the entity from yomo-zipper after stream processing and broadcast it to socket.io clients.
-func NewReceiver(zipperAddress string, websocket *socketio.Server) error {
+func NewReceiver(zipperAddress string, websocket *socketio.Server, appID string, appSecret string) error {
 	log.Printf("------------Receiver init------------ zipper=%s\n", zipperAddress)
-	sfn := yomo.NewStreamFunction("PresenceHandler", yomo.WithZipperAddr(zipperAddress))
-
-	sfn.SetObserveDataID(0x10)
+	sfn := yomo.NewStreamFunction("PresenceHandler",
+		yomo.WithZipperAddr(zipperAddress),
+		yomo.WithObserveDataTags(0x10),
+		yomo.WithAppKeyCredential(appID, appSecret),
+	)
 
 	sfn.SetHandler(handler)
 
