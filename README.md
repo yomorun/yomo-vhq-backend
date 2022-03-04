@@ -79,7 +79,7 @@ $ yomo serve -v -c example/receiver-9000.yaml
 Using config file: example/receiver-9000.yaml
 ℹ️   Found 0 flows in zipper config
 ℹ️   Found 1 sinks in zipper config
-ℹ️   Sink 1: PresenceHandler
+ℹ️   Sink 1: sfn-1
 ℹ️   Running YoMo Serverless...
 2021/07/13 16:44:28 ✅ Listening on localhost:9000
 ```

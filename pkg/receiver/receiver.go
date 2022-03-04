@@ -2,6 +2,7 @@ package receiver
 
 import (
 	"encoding/json"
+	"os"
 
 	color "github.com/fatih/color"
 	socketio "github.com/googollee/go-socket.io"
@@ -15,11 +16,19 @@ var log = color.New(color.FgCyan)
 
 var ws *socketio.Server
 
+// the default name of sfn.
+const defaultSfn = "sfn-1"
+
 // setupReceiver connects to `yomo-zipper` as a `yomo-sink`.
 // receiver will receive the entity from yomo-zipper after stream processing and broadcast it to socket.io clients.
 func NewReceiver(zipperAddress string, websocket *socketio.Server, appID string, appSecret string) error {
-	log.Printf("------------Receiver init------------ zipper=%s\n", zipperAddress)
-	sfn := yomo.NewStreamFunction("PresenceHandler",
+	sfnName := os.Getenv("VHQ_SFN")
+	if len(sfnName) == 0 {
+		sfnName = defaultSfn
+	}
+
+	log.Printf("------------Receiver init------------ zipper=%s, sfn=%s\n", zipperAddress, sfnName)
+	sfn := yomo.NewStreamFunction(sfnName,
 		yomo.WithZipperAddr(zipperAddress),
 		yomo.WithObserveDataTags(0x10),
 		yomo.WithAppKeyCredential(appID, appSecret),
