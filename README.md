@@ -9,7 +9,7 @@ Nowadays, users care about low-latency event streaming. But backend services usu
 There are 3 parts in this Realtime Presence Sync Service: 
 
 1. **Websocket Server**: accepts WebSocket connections from Web Browsers
-2. **Presence Sender Service**: a YoMo Server responsible for dispatch presence to other nodes 
+2. **Presence Sender Service**: a YoMo Server responsible for dispatch presence to other nodes
 3. **Presence Receiver Service**: a YoMo Server responsible for recieving presence from Senders
 
 By YoMo, we create an event stream from Bob to Alice, sync all presence from Bob to Alice. Assume Bob and Alice are both in Europe, they connect to the same mesh node: 
@@ -42,11 +42,17 @@ YoMo care about security, presence in `Sender` and `Receiver` are encrypt by TLS
 
 ### 1. Install YoMo CLI
 
+#### Binary (Recommended)
+
+```bash
+$ curl -fsSL "https://bina.egoist.sh/yomorun/cli?name=yomo" | sh
+```
+
+#### Or build from source
+
 ```bash
 $ go install github.com/yomorun/cli/yomo@latest
 ```
-
-See [YoMo CLI](https://github.com/yomorun/cli#installing) for details.
 
 ### 2. Start Next.js server
 
@@ -121,3 +127,7 @@ $ MESH_ID=Local SENDER=localhost:8000 RECEIVER=localhost:9000 go run cmd/main.go
 ### 6. Open browser
 
 http://localhost:3000/
+
+## Production
+
+It is important to generate the **TLS certificates** when running the `Websocket Server`, `Presence-Reciever Server` and `Presence-Sender Server` on production enviroment. Please check the [link](https://github.com/yomorun/yomo/tree/master/scripts) for details.
