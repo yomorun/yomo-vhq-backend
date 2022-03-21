@@ -151,6 +151,10 @@ func bindConnection(server *socketio.Server) {
 			logger.Printf("[%s-%s | EVT | ping | need to set timestamp, use defauts\n", state.userID, state.roomID)
 			signal["timestamp"] = time.Now().UnixMilli()
 		}
+		// add "name" from state
+		if signal["name"] == nil {
+			signal["name"] = state.userID
+		}
 		logger.Printf("[%s-%s] | EVT | ping | %v - (%T)\n", state.userID, state.roomID, signal, signal)
 		// broadcast to all receivers
 		buf, _ := json.Marshal(signal)
