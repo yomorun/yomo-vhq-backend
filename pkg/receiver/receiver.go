@@ -31,7 +31,7 @@ func NewReceiver(zipperAddress string, websocket *socketio.Server, appID string,
 	sfn := yomo.NewStreamFunction(sfnName,
 		yomo.WithZipperAddr(zipperAddress),
 		yomo.WithObserveDataTags(0x10),
-		yomo.WithAppKeyCredential(appID, appSecret),
+		yomo.WithCredential(lib.Credential(appID, appSecret)),
 	)
 
 	sfn.SetHandler(handler)

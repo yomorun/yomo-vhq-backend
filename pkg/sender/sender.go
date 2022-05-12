@@ -23,7 +23,7 @@ var logger = color.New(color.FgYellow)
 func NewSender(zipperAddress string, server *socketio.Server, appID string, appSecret string) {
 	sender = yomo.NewSource("yomo-source",
 		yomo.WithZipperAddr(zipperAddress),
-		yomo.WithAppKeyCredential(appID, appSecret),
+		yomo.WithCredential(lib.Credential(appID, appSecret)),
 	)
 
 	err := sender.Connect()
