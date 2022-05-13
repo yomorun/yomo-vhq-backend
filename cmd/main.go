@@ -25,11 +25,8 @@ var senderYoMoServer string
 // YoMo zipper for receiving messages
 var receiverYoMoServer string
 
-// The app_id when connects to zipper.
-var zipperAppID string
-
-// The app_secret when connects to zipper.
-var zipperAppSecret string
+// The credential when connects to zipper.
+var zipperCredential string
 
 // meshID is the access point for users. This services can be deployed at anywhere
 // to decrease connection_time. Users can connect to the nearest access point.
@@ -50,16 +47,10 @@ func main() {
 		receiverYoMoServer = "localhost:9000"
 	}
 
-	// The app_id when connects to zipper.
-	zipperAppID = os.Getenv("ZIPPER_APP_ID")
-	if len(zipperAppID) == 0 {
-		zipperAppID = "app_vhq"
-	}
-
-	// The app_secret when connects to zipper.
-	zipperAppSecret = os.Getenv("ZIPPER_APP_SECRET")
-	if len(zipperAppSecret) == 0 {
-		zipperAppSecret = "app_vhq_secret"
+	// The credential when connects to zipper.
+	zipperCredential = os.Getenv("ZIPPER_CREDENTIAL")
+	if len(zipperCredential) == 0 {
+		zipperCredential = "app-key-secret:app_vhq|app_vhq_secret"
 	}
 
 	// create the socket.io server, handle user connections.
@@ -71,10 +62,10 @@ func main() {
 	defer server.Close()
 
 	// sender will send the data to `yomo-zipper` for stream processing.
-	go sender.NewSender(senderYoMoServer, server, zipperAppID, zipperAppSecret)
+	go sender.NewSender(senderYoMoServer, server, zipperCredential)
 
 	// receiver will receive the data from `yomo-zipper` after stream processing.
-	go receiver.NewReceiver(receiverYoMoServer, server, zipperAppID, zipperAppSecret)
+	go receiver.NewReceiver(receiverYoMoServer, server, zipperCredential)
 
 	// serve socket.io server.
 	go server.Serve()
