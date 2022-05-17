@@ -21,7 +21,7 @@ const defaultSfn = "sfn-1"
 
 // setupReceiver connects to `yomo-zipper` as a `yomo-sink`.
 // receiver will receive the entity from yomo-zipper after stream processing and broadcast it to socket.io clients.
-func NewReceiver(zipperAddress string, websocket *socketio.Server, appID string, appSecret string) error {
+func NewReceiver(zipperAddress string, websocket *socketio.Server, credential string) error {
 	sfnName := os.Getenv("VHQ_SFN")
 	if len(sfnName) == 0 {
 		sfnName = defaultSfn
@@ -31,7 +31,7 @@ func NewReceiver(zipperAddress string, websocket *socketio.Server, appID string,
 	sfn := yomo.NewStreamFunction(sfnName,
 		yomo.WithZipperAddr(zipperAddress),
 		yomo.WithObserveDataTags(0x10),
-		yomo.WithAppKeyCredential(appID, appSecret),
+		yomo.WithCredential(credential),
 	)
 
 	sfn.SetHandler(handler)
