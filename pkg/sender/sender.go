@@ -193,7 +193,7 @@ func dispatchToReceivers(payload lib.Presence) {
 		logger.Printf("dispatchToReceivers json.Marshal error: %v", err)
 	}
 
-	_, err = sender.Write(sendingBuf)
+	err = sender.Broadcast(sendingBuf)
 	if err != nil {
 		logger.Printf("dispatchToReceivers sender.Write error: %v", err)
 	}
