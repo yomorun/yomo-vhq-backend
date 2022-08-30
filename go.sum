@@ -236,8 +236,8 @@ github.com/viant/assertly v0.4.8/go.mod h1:aGifi++jvCrUaklKEKT0BU95igDNaqkvz+49u
 github.com/viant/toolbox v0.24.0/go.mod h1:OxMCG57V0PXuIP2HNQrtJf2CjqdmbrOx5EkMILuUhzM=
 github.com/yomorun/y3 v1.0.5 h1:1qoZrDX+47hgU2pVJgoCEpeeXEOqml/do5oHjF9Wef4=
 github.com/yomorun/y3 v1.0.5/go.mod h1:+zwvZrKHe8D3fTMXNTsUsZXuI+kYxv3LRA2fSJEoWbo=
-github.com/yomorun/yomo v1.9.0 h1:r8Fh69FOXF3GUO/NhU3pofEQ+tVyHNheEh9whKxB/lM=
-github.com/yomorun/yomo v1.9.0/go.mod h1:DJB/qAGkDbpLE+Rcf0LRySApdZxgeFv0n59JMmsG2SA=
+github.com/yomorun/yomo v1.9.1 h1:Ae4eWH2R30KihFNAZQfxuVJGwk7pQfwPoStVGZbQSSk=
+github.com/yomorun/yomo v1.9.1/go.mod h1:DJB/qAGkDbpLE+Rcf0LRySApdZxgeFv0n59JMmsG2SA=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
