@@ -9,7 +9,7 @@ require (
 	github.com/goccy/go-json v0.9.11 // indirect
 	github.com/gofrs/uuid v4.2.0+incompatible // indirect
 	github.com/gomodule/redigo v1.8.9 // indirect
-	github.com/googollee/go-socket.io v1.6.2
+	github.com/googollee/go-socket.io v1.7.0
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/marten-seemann/qtls-go1-19 v0.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
